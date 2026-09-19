@@ -1,51 +1,68 @@
 import { useEffect, useMemo } from "react";
 import L from "leaflet";
-import { places, type Hazard } from "../data/mock";
+import { places as fallbackPlaces, type Hazard, type RiskLevel } from "../data/mock";
+
+export interface PlaceZone {
+  id: string;
+  name: string;
+  lat: number;
+  long: number;
+  hazard: Hazard;
+  prob: number;
+  level: RiskLevel;
+  lead: string;
+  signals: string;
+}
+
+export interface RiskCenter {
+  lat: number;
+  long: number;
+  r: number;
+  level: RiskLevel;
+  hazard: Hazard;
+}
 
 type Props = {
   hour: number;
   layers: Record<string, boolean>;
-  selectedHazard: Hazard | "All";
-  onSelect: (p: (typeof places)[number]) => void;
+  selectedHazard?: Hazard | "All";
+  hazard?: Hazard | "All";
+  onSelect?: (p: PlaceZone) => void;
+  setSelected?: (p: PlaceZone) => void;
+  places?: PlaceZone[];
+  centers?: RiskCenter[];
 };
+
+const defaultCenters: RiskCenter[] = [
+  { lat: 30.393, long: 79.07, r: 0.045, level: "HIGH", hazard: "Cloudburst" },
+  { lat: 30.352, long: 79.06, r: 0.035, level: "MODERATE", hazard: "Flash Flood" },
+  { lat: 30.42, long: 79.12, r: 0.032, level: "WATCH", hazard: "Thunderstorm" },
+  { lat: 30.285, long: 78.981, r: 0.025, level: "MODERATE", hazard: "Cloudburst" },
+];
 
 export default function MapView({
   hour,
   layers,
   selectedHazard,
+  hazard,
   onSelect,
+  setSelected,
+  places,
+  centers,
 }: Props) {
-  const centers = [
-    { lat: 30.393, long: 79.07, r: 0.045, level: "HIGH", hazard: "Cloudburst" },
-    {
-      lat: 30.352,
-      long: 79.06,
-      r: 0.035,
-      level: "MODERATE",
-      hazard: "Flash Flood",
-    },
-    {
-      lat: 30.42,
-      long: 79.12,
-      r: 0.032,
-      level: "WATCH",
-      hazard: "Thunderstorm",
-    },
-    {
-      lat: 30.285,
-      long: 78.981,
-      r: 0.025,
-      level: "MODERATE",
-      hazard: "Cloudburst",
-    },
-  ];
+  const activeHazard = hazard || selectedHazard || "All";
+  const handleSelect = onSelect || setSelected || (() => {});
+  const activePlaces = places && places.length > 0 ? places : (fallbackPlaces as PlaceZone[]);
+  const activeCenters = centers && centers.length > 0 ? centers : defaultCenters;
+
   const layerPlaces = useMemo(
     () =>
-      places.filter(
-        (p) => selectedHazard === "All" || p.hazard === selectedHazard,
+      activePlaces.filter(
+        (p) => activeHazard === "All" || p.hazard === activeHazard,
       ),
-    [selectedHazard],
+    [activePlaces, activeHazard],
   );
+
   useEffect(() => {
     const el = document.getElementById("risk-map");
     if (!el) return;
@@ -55,6 +72,7 @@ export default function MapView({
       attribution: "© OpenStreetMap contributors",
       maxZoom: 19,
     }).addTo(map);
+
     if (layers.rivers) {
       L.polyline(
         [
@@ -69,6 +87,7 @@ export default function MapView({
         .addTo(map)
         .bindTooltip("Mandakini River");
     }
+
     if (layers.roads) {
       L.polyline(
         [
@@ -91,6 +110,7 @@ export default function MapView({
         { color: "#64748b", weight: 2, dashArray: "5 7", opacity: 0.8 },
       ).addTo(map);
     }
+
     if (layers.terrain) {
       [
         [30.43, 79.02, 0.07],
@@ -106,6 +126,7 @@ export default function MapView({
         }).addTo(map),
       );
     }
+
     if (layers.population) {
       L.circleMarker([30.285, 78.981], {
         radius: 9,
@@ -124,9 +145,10 @@ export default function MapView({
         .addTo(map)
         .bindTooltip("Pilgrim / transit cluster");
     }
+
     if (layers.risk) {
-      centers.forEach((z) => {
-        const show = selectedHazard === "All" || selectedHazard === z.hazard;
+      activeCenters.forEach((z) => {
+        const show = activeHazard === "All" || activeHazard === z.hazard;
         if (!show) return;
         const growth = 1 + Math.max(0, 3 - hour) * 0.015;
         const color =
@@ -144,6 +166,7 @@ export default function MapView({
         }).addTo(map);
       });
     }
+
     layerPlaces.forEach((p) => {
       const color =
         p.level === "HIGH"
@@ -163,8 +186,9 @@ export default function MapView({
         .bindPopup(
           `<div style="min-width:190px"><b>${p.name}</b><br/><span>${p.hazard} • ${p.level}</span><hr/><b>${p.prob}% probability</b><br/>Lead time: ${p.lead}<br/>Signals: ${p.signals}</div>`,
         )
-        .on("click", () => onSelect(p));
+        .on("click", () => handleSelect(p));
     });
+
     L.marker([30.285, 78.981], {
       icon: L.divIcon({
         className: "control-pin",
@@ -175,10 +199,12 @@ export default function MapView({
     })
       .addTo(map)
       .bindTooltip("Rudraprayag District Control Zone");
+
     return () => {
       map.remove();
     };
-  }, [hour, layers, selectedHazard, onSelect, layerPlaces]);
+  }, [hour, layers, activeHazard, handleSelect, layerPlaces, activeCenters]);
+
   return (
     <div
       id="risk-map"
