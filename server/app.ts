@@ -14,6 +14,24 @@ app.use((_req, res, next) => {
   next();
 });
 
+// GET /api
+app.get('/api', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ONLINE',
+    service: 'VAJRA SIH 2026 AI Nowcasting API',
+    environment: 'PROTOTYPE-SIMULATION',
+    endpoints: [
+      '/api/health',
+      '/api/signals',
+      '/api/forecast',
+      '/api/hazards',
+      '/api/alerts',
+      '/api/locations',
+      '/api/simulation'
+    ]
+  });
+});
+
 // GET /api/signals
 app.get('/api/signals', (req: Request, res: Response) => {
   const locationId = req.query.location as string | undefined;
