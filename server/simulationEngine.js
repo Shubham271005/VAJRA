@@ -1,3 +1,5 @@
+import { modelCache } from './modelCache.js';
+
 // 3 Deterministic simulation states that accurately mimic convective lifecycle in the Himalayas
 const SCENARIOS = [
   {
@@ -1028,17 +1030,18 @@ export class SimulationEngine {
 
   getCurrentScenario() {
     const raw = SCENARIOS[this.scenarioIndex];
+    const isBaseScenario = this.scenarioIndex === 0;
     return {
       scenarioId: raw.id,
-      scenarioName: raw.name,
-      simulatedTimestamp: raw.simulatedTimestamp,
+      scenarioName: isBaseScenario ? (modelCache.scenario || raw.name) : raw.name,
+      simulatedTimestamp: isBaseScenario ? (modelCache.data_lineage?.observation_time || raw.simulatedTimestamp) : raw.simulatedTimestamp,
       pipelineStages: this.generatePipelineSteps(),
-      forecast: JSON.parse(JSON.stringify(raw.forecast)),
-      signals: JSON.parse(JSON.stringify(raw.signals)),
-      alerts: generateAllSectorAlerts(JSON.parse(JSON.stringify(raw.alerts)), this.scenarioIndex, raw.simulatedTimestamp),
-      places: JSON.parse(JSON.stringify(raw.places)),
-      centers: JSON.parse(JSON.stringify(raw.centers)),
-      explainability: JSON.parse(JSON.stringify(raw.explainability))
+      forecast: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.forecast)) : JSON.parse(JSON.stringify(raw.forecast)),
+      signals: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.signals)) : JSON.parse(JSON.stringify(raw.signals)),
+      alerts: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.alerts)) : generateAllSectorAlerts(JSON.parse(JSON.stringify(raw.alerts)), this.scenarioIndex, raw.simulatedTimestamp),
+      places: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.places)) : JSON.parse(JSON.stringify(raw.places)),
+      centers: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.centers)) : JSON.parse(JSON.stringify(raw.centers)),
+      explainability: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.explainability)) : JSON.parse(JSON.stringify(raw.explainability))
     };
   }
 

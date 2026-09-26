@@ -2,6 +2,7 @@ import {
   SimulationEngine,
   DISTRICT_LOCATIONS
 } from './simulationEngine.js';
+import { modelCache } from './modelCache.js';
 
 export class SessionStateManager {
   constructor() {
@@ -9,7 +10,8 @@ export class SessionStateManager {
     this.activeLocationId = 'rudraprayag';
     this.activeHour = 3;
     this.acknowledgedAlerts = new Map();
-    this.latestAiInference = null;
+    this.latestAiInference = modelCache;
+    this.lastAiSync = 0;
     this.initAi();
   }
 
