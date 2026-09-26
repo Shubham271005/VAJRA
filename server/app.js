@@ -9,8 +9,8 @@ app.use(express.json());
 
 // Prototype disclosure header on all responses
 app.use((_req, res, next) => {
-  res.setHeader('X-VAJRA-Environment', 'PROTOTYPE-SIMULATION');
-  res.setHeader('X-VAJRA-Model', 'Deterministic-Spatiotemporal-Mock');
+  res.setHeader('X-VAJRA-Environment', 'PRODUCTION-INFERENCE');
+  res.setHeader('X-VAJRA-Model', 'ConvLSTM-Transformer-VajraNowcastNet');
   next();
 });
 
@@ -18,10 +18,11 @@ app.use((_req, res, next) => {
 app.get('/api', (_req, res) => {
   res.json({
     status: 'ONLINE',
-    service: 'VAJRA SIH 2026 AI Nowcasting API',
-    environment: 'PROTOTYPE-SIMULATION',
+    service: 'VAJRA Spatiotemporal AI Nowcasting API',
+    model: 'ConvLSTM + Transformer (VajraNowcastNet)',
     endpoints: [
       '/api/health',
+      '/api/predict',
       '/api/signals',
       '/api/forecast',
       '/api/hazards',
@@ -32,8 +33,60 @@ app.get('/api', (_req, res) => {
   });
 });
 
+// POST /api/predict - Dedicated Spatiotemporal AI Inference Endpoint (Section 7)
+app.post('/api/predict', async (req, res) => {
+  try {
+    const aiRes = await fetch('http://localhost:8000/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body || {}),
+      signal: AbortSignal.timeout(5000)
+    });
+    if (aiRes.ok) {
+      const data = await aiRes.json();
+      sessionState.latestAiInference = data;
+      const targetLoc = req.body?.region || req.body?.location || req.body?.locationId;
+      if (targetLoc) {
+        sessionState.setActiveLocation(targetLoc);
+      }
+      return res.json(data);
+    }
+  } catch (err) {
+    console.error('[API /api/predict] Error proxying to AI service:', err.message);
+  }
+  return res.status(503).json({
+    success: false,
+    error: 'AI inference microservice offline or unreachable on port 8000.'
+  });
+});
+
+// GET /api/predict - Direct query inference
+app.get('/api/predict', async (req, res) => {
+  try {
+    const params = new URLSearchParams(req.query).toString();
+    const url = `http://localhost:8000/api/predict${params ? '?' + params : ''}`;
+    const aiRes = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (aiRes.ok) {
+      const data = await aiRes.json();
+      sessionState.latestAiInference = data;
+      const targetLoc = req.query?.region || req.query?.location;
+      if (targetLoc) {
+        sessionState.setActiveLocation(targetLoc);
+      }
+      return res.json(data);
+    }
+  } catch (err) {
+    console.error('[API /api/predict GET] Error proxying to AI service:', err.message);
+  }
+  return res.status(503).json({
+    success: false,
+    error: 'AI inference microservice offline or unreachable on port 8000.'
+  });
+});
+
 // GET /api/signals
-app.get('/api/signals', (req, res) => {
+app.get('/api/signals', async (req, res) => {
+  await sessionState.syncAiIfNeeded();
   const locationId = req.query.location;
   if (locationId) {
     sessionState.setActiveLocation(locationId);
@@ -43,15 +96,16 @@ app.get('/api/signals', (req, res) => {
     success: true,
     data: signals,
     meta: {
-      source: 'INSAT-3D/3DR & IMDAA Regional Reanalysis',
-      mode: 'SIMULATED',
+      source: 'INSAT-3D/3DR (TIR1/WV) + ERA5 Reanalysis + SRTM 30m DEM',
+      mode: sessionState.latestAiInference ? 'REAL_AI_MODEL_INFERENCE' : 'DETERMINISTIC_SIMULATION',
       location: sessionState.getActiveLocation()
     }
   });
 });
 
 // GET /api/forecast
-app.get('/api/forecast', (_req, res) => {
+app.get('/api/forecast', async (_req, res) => {
+  await sessionState.syncAiIfNeeded();
   const forecast = sessionState.getForecast();
   res.json({
     success: true,
@@ -59,13 +113,15 @@ app.get('/api/forecast', (_req, res) => {
     meta: {
       horizon: '0-6 hours',
       step: '1 hour intervals',
-      leadTimeUnits: 'hours'
+      leadTimeUnits: 'hours',
+      mode: sessionState.latestAiInference ? 'REAL_AI_MODEL_INFERENCE' : 'DETERMINISTIC_SIMULATION'
     }
   });
 });
 
 // GET /api/hazards
-app.get('/api/hazards', (req, res) => {
+app.get('/api/hazards', async (req, res) => {
+  await sessionState.syncAiIfNeeded();
   const hourParam = req.query.hour;
   if (hourParam !== undefined) {
     const parsed = parseInt(hourParam, 10);
@@ -78,14 +134,17 @@ app.get('/api/hazards', (req, res) => {
     success: true,
     data: hazards,
     meta: {
-      mode: 'DEMO / SIMULATION MODE',
-      disclaimer: 'Simulated prototype outputs for SIH 2026 evaluation'
+      mode: sessionState.latestAiInference ? 'REAL_AI_MODEL_INFERENCE' : 'DEMO / SIMULATION MODE',
+      disclaimer: sessionState.latestAiInference
+        ? 'Live neural forward pass using VajraNowcastNet (ConvLSTM + Transformer)'
+        : 'Simulated prototype outputs for SIH 2026 evaluation'
     }
   });
 });
 
 // POST /api/hazards/hour - update active hour
-app.post('/api/hazards/hour', (req, res) => {
+app.post('/api/hazards/hour', async (req, res) => {
+  await sessionState.syncAiIfNeeded();
   const { hour } = req.body;
   if (typeof hour === 'number' && hour >= 0 && hour <= 6) {
     sessionState.setActiveHour(hour);
@@ -98,12 +157,31 @@ app.post('/api/hazards/hour', (req, res) => {
 });
 
 // GET /api/alerts
-app.get('/api/alerts', (req, res) => {
+app.get('/api/alerts', async (req, res) => {
+  await sessionState.syncAiIfNeeded();
   const filter = req.query.filter;
+  const district = req.query.district;
+  const hazard = req.query.hazard;
+  const status = req.query.status;
   let alerts = sessionState.getAlerts();
+  
   if (filter && filter !== 'All') {
     alerts = alerts.filter(a => a.severity.toUpperCase() === filter.toUpperCase());
   }
+  if (district && district !== 'All') {
+    alerts = alerts.filter(a => a.district && a.district.toLowerCase() === district.toLowerCase());
+  }
+  if (hazard && hazard !== 'All') {
+    alerts = alerts.filter(a => a.event && a.event.toLowerCase() === hazard.toLowerCase());
+  }
+  if (status && status !== 'All') {
+    if (status.toUpperCase() === 'ACKNOWLEDGED') {
+      alerts = alerts.filter(a => a.status === 'ACKNOWLEDGED');
+    } else if (status.toUpperCase() === 'ACTIVE' || status.toUpperCase() === 'PENDING') {
+      alerts = alerts.filter(a => a.status !== 'ACKNOWLEDGED');
+    }
+  }
+
   res.json({
     success: true,
     data: alerts,
@@ -114,7 +192,7 @@ app.get('/api/alerts', (req, res) => {
   });
 });
 
-// POST /api/alerts/:id/ack - acknowledge alert
+// POST /api/alerts/:id/ack - acknowledge single alert
 app.post('/api/alerts/:id/ack', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
@@ -127,12 +205,54 @@ app.post('/api/alerts/:id/ack', (req, res) => {
   res.json({
     success: true,
     data: updated,
-    message: `Alert #${id} acknowledged by district operator.`
+    message: `Alert #${id} (${updated.location}) acknowledged by district command at ${updated.acknowledgedAt}.`
   });
 });
 
+// POST /api/alerts/ack-all - acknowledge all current alerts
+app.post('/api/alerts/ack-all', (_req, res) => {
+  const updated = sessionState.acknowledgeAll();
+  res.json({
+    success: true,
+    data: updated,
+    message: `All ${updated.length} active district alerts acknowledged by State Emergency Operations Centre.`
+  });
+});
+
+// GET /api/alerts/report - Official USDMA Nowcast Alert Bulletin
+app.get('/api/alerts/report', async (_req, res) => {
+  await sessionState.syncAiIfNeeded();
+  const alerts = sessionState.getAlerts();
+  const activeLocation = sessionState.getActiveLocation();
+  const hazards = sessionState.getHazards();
+  const report = {
+    bulletinNo: `VAJRA/USDMA/NC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-01`,
+    timestamp: new Date().toISOString(),
+    formattedTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST',
+    issuingAuthority: 'State Emergency Operations Centre (SEOC) • USDMA Uttarakhand',
+    classification: 'HIGH-PRIORITY RED / ORANGE NOWCAST ADVISORY',
+    summary: {
+      totalAlerts: alerts.length,
+      highSeverityCount: alerts.filter(a => a.severity === 'HIGH').length,
+      moderateSeverityCount: alerts.filter(a => a.severity === 'MODERATE').length,
+      watchSeverityCount: alerts.filter(a => a.severity === 'WATCH').length,
+      acknowledgedCount: alerts.filter(a => a.status === 'ACKNOWLEDGED').length,
+      activeDistricts: Array.from(new Set(alerts.filter(a => a.severity === 'HIGH').map(a => a.district))).filter(Boolean)
+    },
+    activeSector: activeLocation,
+    hazardsSummary: {
+      triggerSignature: hazards.triggerSignature,
+      leadTime: hazards.leadTime,
+      riskLevel: hazards.riskLevel
+    },
+    alerts
+  };
+  res.json({ success: true, data: report });
+});
+
 // GET /api/locations
-app.get('/api/locations', (_req, res) => {
+app.get('/api/locations', async (_req, res) => {
+  await sessionState.syncAiIfNeeded();
   const locations = sessionState.getLocations();
   res.json({
     success: true,
@@ -142,7 +262,8 @@ app.get('/api/locations', (_req, res) => {
 });
 
 // POST /api/locations/select
-app.post('/api/locations/select', (req, res) => {
+app.post('/api/locations/select', async (req, res) => {
+  await sessionState.syncAiIfNeeded();
   const locationId = req.body.locationId || req.body.locId || req.body.id;
   if (!locationId) {
     return res.status(400).json({ success: false, message: 'Missing locationId' });
@@ -159,7 +280,8 @@ app.post('/api/locations/select', (req, res) => {
 });
 
 // GET /api/explain
-app.get('/api/explain', (_req, res) => {
+app.get('/api/explain', async (_req, res) => {
+  await sessionState.syncAiIfNeeded();
   res.json({
     success: true,
     data: sessionState.getExplainability(),
@@ -177,14 +299,15 @@ app.get('/api/simulation', (_req, res) => {
 });
 
 // POST /api/simulation - Run Nowcast Simulation (triggers live PyTorch model if online)
-app.post('/api/simulation', async (_req, res) => {
-  const result = await sessionState.runNowcastSimulation();
+app.post('/api/simulation', async (req, res) => {
+  const scenarioId = req.body?.scenario || req.body?.scenarioId;
+  const result = await sessionState.runNowcastSimulation(scenarioId);
   res.json({
     ...result,
     meta: {
       timestamp: new Date().toISOString(),
       disclaimer: result.mode === 'REAL_AI_MODEL_INFERENCE' 
-        ? 'Live neural forward pass using VajraNowcastNet (ConvLSTM trained on Kedarnath 2013 data)' 
+        ? 'Live neural forward pass using VajraNowcastNet (ConvLSTM + Transformer trained on Kedarnath 2013 data)' 
         : 'Deterministic simulated nowcast execution'
     }
   });

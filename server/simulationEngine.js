@@ -925,6 +925,101 @@ export const DISTRICT_LOCATIONS = [
   }
 ];
 
+function generateAllSectorAlerts(rawAlerts, scenarioIndex, timestamp) {
+  const result = [];
+  const coveredIds = new Set();
+
+  for (const a of rawAlerts) {
+    const locMatch = DISTRICT_LOCATIONS.find(l => l.name.toLowerCase().includes(a.location.toLowerCase()) || a.location.toLowerCase().includes(l.name.toLowerCase()));
+    const locId = locMatch?.id || 'rudraprayag';
+    coveredIds.add(locId);
+    result.push({
+      ...a,
+      locationId: locId,
+      district: locMatch?.district || 'Rudraprayag',
+      elevation: locMatch?.elevation || '1,800 m',
+      lat: locMatch?.lat || 30.735,
+      long: locMatch?.long || 79.067,
+      protocol: a.severity === 'HIGH'
+        ? (a.event === 'Cloudburst' ? 'SOP-RED-01 (Mandatory Valley Evacuation & Pilgrim Shelter Halt)' : (a.event === 'Flash Flood' ? 'SOP-RED-02 (Riverfront Clearance, Highway Closure & Barrage Warning)' : 'SOP-RED-03 (Severe Squall Alert & Heli-Yatra Flight Grounding)'))
+        : (a.severity === 'MODERATE' ? 'SOP-ORANGE-01 (Pre-position SDRF Teams & Catchment Surveillance)' : 'SOP-YELLOW-01 (Continuous Rain-Gauge Vigilance)'),
+      rainfall: a.severity === 'HIGH' ? 64.2 : 28.5,
+      slope: '32°',
+      timeDispatched: timestamp
+    });
+  }
+
+  for (const loc of DISTRICT_LOCATIONS) {
+    if (coveredIds.has(loc.id)) continue;
+    let severity = 'WATCH';
+    let prob = 42 + (loc.id.length % 18);
+    let lead = `${loc.leadHours || 2} hrs`;
+    if (loc.isMajor) {
+      if (scenarioIndex === 1) {
+        severity = 'HIGH';
+        prob = 82 + (loc.id.length % 12);
+        lead = '1 hr';
+      } else {
+        severity = 'MODERATE';
+        prob = 68 + (loc.id.length % 14);
+      }
+    } else if (scenarioIndex === 1) {
+      severity = 'MODERATE';
+      prob = 62 + (loc.id.length % 15);
+    }
+
+    const hazard = loc.hazard || 'Thunderstorm';
+    let protocol = 'SOP-YELLOW-01 (Continuous Rain-Gauge Vigilance & Drainage Readiness)';
+    if (severity === 'HIGH') {
+      protocol = hazard === 'Cloudburst'
+        ? 'SOP-RED-01 (Mandatory Valley Evacuation & Pilgrim Shelter Halt)'
+        : (hazard === 'Flash Flood' ? 'SOP-RED-02 (Riverfront Clearance, Highway Closure & Barrage Warning)' : 'SOP-RED-03 (Severe Squall Alert & Heli-Yatra Flight Grounding)');
+    } else if (severity === 'MODERATE') {
+      protocol = hazard === 'Cloudburst'
+        ? 'SOP-ORANGE-01 (Pre-position SDRF Teams & Catchment Surveillance)'
+        : (hazard === 'Flash Flood' ? 'SOP-ORANGE-02 (Hydrological Watch & Low-Lying Ghat Barricading)' : 'SOP-ORANGE-03 (Power Substation Isolation & Ridge Staging)');
+    }
+
+    const trigger = hazard === 'Cloudburst'
+      ? `Glaciated CTT -52°C • Orographic Lift over ${loc.elevation}`
+      : (hazard === 'Flash Flood' ? `Hydraulic Basin Inundation • Runoff Convergence` : `Convective Instability • High-Altitude Ridge Wind Shear`);
+
+    result.push({
+      id: result.length + 1,
+      locationId: loc.id,
+      district: loc.district,
+      elevation: loc.elevation,
+      lat: loc.lat,
+      long: loc.long,
+      severity,
+      event: hazard,
+      location: loc.name,
+      prob,
+      lead,
+      trigger,
+      status: severity === 'HIGH' ? 'ACTIVE' : (severity === 'MODERATE' ? 'MONITOR' : 'WATCH'),
+      actionRecommended: loc.description,
+      protocol,
+      rainfall: severity === 'HIGH' ? 52.4 : (severity === 'MODERATE' ? 24.8 : 8.2),
+      slope: '26°',
+      timeDispatched: timestamp
+    });
+  }
+
+  result.sort((a, b) => {
+    const sevOrder = { HIGH: 0, MODERATE: 1, WATCH: 2 };
+    const diff = (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3);
+    if (diff !== 0) return diff;
+    return b.prob - a.prob;
+  });
+
+  result.forEach((a, idx) => {
+    a.id = idx + 1;
+  });
+
+  return result;
+}
+
 export class SimulationEngine {
   constructor() {
     this.scenarioIndex = 0;
@@ -940,7 +1035,7 @@ export class SimulationEngine {
       pipelineStages: this.generatePipelineSteps(),
       forecast: JSON.parse(JSON.stringify(raw.forecast)),
       signals: JSON.parse(JSON.stringify(raw.signals)),
-      alerts: JSON.parse(JSON.stringify(raw.alerts)),
+      alerts: generateAllSectorAlerts(JSON.parse(JSON.stringify(raw.alerts)), this.scenarioIndex, raw.simulatedTimestamp),
       places: JSON.parse(JSON.stringify(raw.places)),
       centers: JSON.parse(JSON.stringify(raw.centers)),
       explainability: JSON.parse(JSON.stringify(raw.explainability))

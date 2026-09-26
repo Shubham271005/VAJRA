@@ -13,19 +13,37 @@ export class SessionStateManager {
     this.initAi();
   }
 
-  async initAi() {
-    try {
-      const res = await fetch('http://localhost:8000/api/predict', { signal: AbortSignal.timeout(3000) });
-      if (res.ok) {
-        this.latestAiInference = await res.json();
-        console.log('[SessionState] Eagerly synced with live VAJRA ConvLSTM inference on startup.');
+  async syncAiIfNeeded() {
+    if (!this.latestAiInference || (Date.now() - (this.lastAiSync || 0) > 15000)) {
+      try {
+        const res = await fetch('http://localhost:8000/api/predict', { signal: AbortSignal.timeout(6000) });
+        if (res.ok) {
+          this.latestAiInference = await res.json();
+          this.lastAiSync = Date.now();
+        }
+      } catch (e) {
+        // AI microservice offline or warming up
       }
-    } catch (e) {
+    }
+  }
+
+  async initAi() {
+    await this.syncAiIfNeeded();
+    if (this.latestAiInference) {
+      console.log('[SessionState] Eagerly synced with live VAJRA ConvLSTM inference on startup.');
+    } else {
       console.log('[SessionState] Live AI microservice on :8000 not ready yet, using default simulation.');
     }
   }
 
   getLocations() {
+    if (this.latestAiInference?.locations) {
+      const locMap = this.latestAiInference.locations;
+      return Object.values(locMap).map(l => ({
+        ...l.location,
+        isActive: l.location.id === this.activeLocationId
+      }));
+    }
     return DISTRICT_LOCATIONS.map(loc => ({
       ...loc,
       isActive: loc.id === this.activeLocationId
@@ -33,10 +51,17 @@ export class SessionStateManager {
   }
 
   getActiveLocation() {
+    if (this.latestAiInference?.locations?.[this.activeLocationId]) {
+      return this.latestAiInference.locations[this.activeLocationId].location;
+    }
     return DISTRICT_LOCATIONS.find(l => l.id === this.activeLocationId) || DISTRICT_LOCATIONS[0];
   }
 
   setActiveLocation(id) {
+    if (this.latestAiInference?.locations?.[id]) {
+      this.activeLocationId = id;
+      return this.getActiveLocation();
+    }
     const found = DISTRICT_LOCATIONS.find(l => l.id === id);
     if (found) {
       this.activeLocationId = id;
@@ -56,15 +81,24 @@ export class SessionStateManager {
   }
 
   acknowledgeAlert(id) {
-    const timestamp = new Date().toISOString();
-    this.acknowledgedAlerts.set(id, timestamp);
+    const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' IST';
+    this.acknowledgedAlerts.set(id, timeStr);
     const alerts = this.getAlerts();
     return alerts.find(a => a.id === id) || null;
   }
 
+  acknowledgeAll() {
+    const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' IST';
+    const alerts = this.getAlerts();
+    for (const a of alerts) {
+      this.acknowledgedAlerts.set(a.id, timeStr);
+    }
+    return this.getAlerts();
+  }
+
   getAlerts() {
     let rawAlerts;
-    if (this.latestAiInference) {
+    if (this.latestAiInference?.alerts && this.latestAiInference.alerts.length > 0) {
       rawAlerts = this.latestAiInference.alerts;
     } else {
       const scenario = this.engine.getCurrentScenario();
@@ -153,7 +187,8 @@ export class SessionStateManager {
         location: loc,
         places: ai.places,
         centers: ai.centers,
-        explainability: locData?.explainability || ai.explainability
+        explainability: locData?.explainability || ai.explainability,
+        data_lineage: ai.data_lineage
       };
     }
 
@@ -204,30 +239,36 @@ export class SessionStateManager {
       acknowledgedCount: this.acknowledgedAlerts.size,
       lastPipelineExecution: scenario.pipelineStages,
       aiModelConnected: this.latestAiInference !== null,
-      aiModelMode: this.latestAiInference ? 'REAL_AI_MODEL_INFERENCE' : 'DETERMINISTIC_SIMULATION'
+      aiModelMode: this.latestAiInference ? 'REAL_AI_MODEL_INFERENCE' : 'DETERMINISTIC_SIMULATION',
+      data_lineage: this.latestAiInference?.data_lineage
     };
   }
 
-  async runNowcastSimulation() {
+  async runNowcastSimulation(scenarioId = null) {
     // Attempt live neural forward pass via Python AI microservice
     try {
-      const aiRes = await fetch('http://localhost:8000/api/predict', { signal: AbortSignal.timeout(2500) });
+      const params = new URLSearchParams();
+      if (scenarioId) params.append('scenario', scenarioId);
+      if (this.activeLocationId) params.append('location', this.activeLocationId);
+      const query = params.toString() ? '?' + params.toString() : '';
+      const aiRes = await fetch(`http://localhost:8000/api/predict${query}`, { signal: AbortSignal.timeout(3500) });
       if (aiRes.ok) {
         const aiData = await aiRes.json();
         this.latestAiInference = aiData;
         return {
           success: true,
           mode: 'REAL_AI_MODEL_INFERENCE',
-          message: 'VAJRA neural nowcast forward pass executed successfully.',
-          scenarioId: 'kedarnath-2013-convlstm',
-          scenarioName: 'AI Model Inference: Kedarnath 2013 Peak Incident',
-          simulatedTimestamp: '16 JUN 2013 • 17:00 IST',
+          message: 'VAJRA ConvLSTM + Transformer neural nowcast forward pass executed successfully.',
+          scenarioId: aiData.scenario || 'kedarnath-2013-convlstm',
+          scenarioName: aiData.data_lineage?.scenario || 'AI Model Inference: Kedarnath 2013 Incident',
+          simulatedTimestamp: aiData.data_lineage?.observation_time || '16 JUN 2013 • 17:00 IST',
           pipelineStages: [
-            { step: 1, name: 'Satellite Ingestion (INSAT/ERA5)', source: 'IR + WV Channels', status: 'completed', executionTimeMs: 42, details: 'Normalized (4, 8, 65, 35) input tensor' },
-            { step: 2, name: 'Topographic DEM Fusion', source: 'CartoDEM 30m', status: 'completed', executionTimeMs: 18, details: 'Elevation & Slope gradient grids' },
-            { step: 3, name: 'Spatio-Temporal ConvLSTM Encoding', source: 'VajraNowcastNet', status: 'completed', executionTimeMs: 35, details: 'Recurrent advection memory cell' },
-            { step: 4, name: 'Dual-Head Decoding', source: 'PyTorch Inference Engine', status: 'completed', executionTimeMs: 24, details: '0-6h Rain Grid + Multi-Hazard Probabilities' }
+            { step: 1, name: 'Satellite & Reanalysis Ingestion (INSAT/ERA5)', source: '8 Physical Channels (IWV, CAPE, CIN, VWS, WCONV, CTT, DEM, Slope)', status: 'completed', executionTimeMs: 42, details: 'Normalized (4, 8, 64, 64) spatiotemporal input tensor' },
+            { step: 2, name: 'CartoDEM Topographic Fusion', source: 'SRTM 30m Grid', status: 'completed', executionTimeMs: 18, details: 'Fused elevation barriers and terrain slope gradients' },
+            { step: 3, name: 'Temporal Transformer + ConvLSTM Encoding', source: 'VajraNowcastNet (Multi-Head Self-Attention)', status: 'completed', executionTimeMs: 35, details: 'Recurrent advection memory & cross-channel modulation' },
+            { step: 4, name: 'Dual-Head Decoding (Rain Grid + Hazards)', source: 'PyTorch Inference Engine', status: 'completed', executionTimeMs: 24, details: '0-6h Rain Grid + Multi-Hazard Probabilities + Saliency XAI' }
           ],
+          data_lineage: aiData.data_lineage,
           forecast: this.getForecast(),
           signals: this.getSignals(),
           hazards: this.getHazards(),

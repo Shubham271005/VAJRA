@@ -20,6 +20,11 @@ export interface SignalItem {
 
 export interface AlertItem {
   id: number;
+  locationId?: string;
+  district?: string;
+  elevation?: string;
+  lat?: number;
+  long?: number;
   severity: RiskLevel;
   event: Hazard;
   location: string;
@@ -29,6 +34,33 @@ export interface AlertItem {
   status: 'ACTIVE' | 'MONITOR' | 'WATCH' | 'ACKNOWLEDGED';
   acknowledgedAt?: string;
   actionRecommended?: string;
+  protocol?: string;
+  rainfall?: number;
+  slope?: string;
+  timeDispatched?: string;
+}
+
+export interface AlertReportData {
+  bulletinNo: string;
+  timestamp: string;
+  formattedTime: string;
+  issuingAuthority: string;
+  classification: string;
+  summary: {
+    totalAlerts: number;
+    highSeverityCount: number;
+    moderateSeverityCount: number;
+    watchSeverityCount: number;
+    acknowledgedCount: number;
+    activeDistricts: string[];
+  };
+  activeSector: DistrictLocation;
+  hazardsSummary: {
+    triggerSignature?: string;
+    leadTime?: string;
+    riskLevel?: string;
+  };
+  alerts: AlertItem[];
 }
 
 export interface PlaceZone {
@@ -94,6 +126,73 @@ export interface ExplainabilityData {
   };
 }
 
+export interface DataLineage {
+  model_architecture: string;
+  model_version: string;
+  model_checkpoint: string;
+  checkpoint_epoch: number;
+  validation_loss: number;
+  input_source: string;
+  scenario: string;
+  observation_time: string;
+  prediction_timestamp: string;
+  forecast_horizon_hours: number;
+  geographic_domain: {
+    region: string;
+    lat_bounds: [number, number];
+    lon_bounds: [number, number];
+    spatial_grid: string;
+    spatial_resolution: string;
+  };
+  temporal_resolution: string;
+  input_sequence_length: number;
+  output_sequence_length: number;
+  preprocessing_version: string;
+  hazards_modeled: string[];
+  verification_rmse_mm_hr: number;
+  verification_csi: number;
+  data_lineage_traceable: boolean;
+  hazards: {
+    thunderstorm_probability: number;
+    cloudburst_probability: number;
+    flash_flood_probability: number;
+  };
+}
+
+export interface VajraPredictionResponse {
+  success: boolean;
+  mode: string;
+  prediction_id: string;
+  model_version: string;
+  prediction_timestamp: string;
+  region: string;
+  hazards: {
+    severe_thunderstorm: { probability: number; risk_level: RiskLevel };
+    cloudburst: { probability: number; risk_level: RiskLevel };
+    flash_flood: { probability: number; risk_level: RiskLevel };
+  };
+  lead_time: string;
+  risk_map: PlaceZone[];
+  trigger_signature: string[];
+  recommended_action: string[];
+  data_lineage: DataLineage;
+  scenario?: string;
+  modelInfo?: any;
+  activeLocation?: DistrictLocation;
+  forecast?: ForecastPoint[];
+  signals?: SignalItem[];
+  places?: PlaceZone[];
+  centers?: RiskCenter[];
+  alerts?: AlertItem[];
+  explainability?: ExplainabilityData;
+  locations?: Record<string, any>;
+  gridRainfallSummary?: {
+    maxRate_mm_hr: number;
+    meanRate_mm_hr: number;
+    horizons: number[];
+  };
+}
+
 export interface HazardsResponse {
   hour: number;
   label: string;
@@ -109,6 +208,7 @@ export interface HazardsResponse {
   places: PlaceZone[];
   centers: RiskCenter[];
   explainability: ExplainabilityData;
+  data_lineage?: DataLineage;
 }
 
 export interface SimulationStepResult {
@@ -132,6 +232,7 @@ export interface SimulationResult {
   signals: SignalItem[];
   hazards: HazardsResponse;
   alerts: AlertItem[];
+  data_lineage?: DataLineage;
 }
 
 const API_BASE = '/api';
@@ -164,25 +265,25 @@ export const api = {
   async getHazards(hour?: number): Promise<HazardsResponse> {
     const query = hour !== undefined ? `?hour=${hour}` : '';
     const fallback: HazardsResponse = {
-      hour: hour ?? 3,
-      label: `+${hour ?? 3} HR`,
+      hour: hour ?? 0,
+      label: `+${hour ?? 0} HR`,
       probabilities: {
-        cloudburst: fallbackForecast[hour ?? 3]?.cloudburst ?? 82,
-        flood: fallbackForecast[hour ?? 3]?.flood ?? 67,
-        storm: fallbackForecast[hour ?? 3]?.storm ?? 91
+        cloudburst: 0,
+        flood: 0,
+        storm: 0
       },
-      riskLevel: 'HIGH',
-      leadTime: '~3 hours',
-      triggerSignature: 'IWV surge + CAPE increase',
+      riskLevel: 'WATCH',
+      leadTime: 'Awaiting model inference...',
+      triggerSignature: 'Awaiting model inference...',
       location: {
-        id: 'rudraprayag',
-        name: 'Rudraprayag Control Zone',
+        id: 'kedarnath',
+        name: 'Kedarnath / Chorabari Sector',
         district: 'Rudraprayag',
-        lat: 30.285,
-        long: 78.981,
-        elevation: '890 m',
-        type: 'District Control',
-        description: 'District Emergency Operations Center'
+        lat: 30.735,
+        long: 79.067,
+        elevation: '3,584 m',
+        type: 'High-Altitude Cirque & Moraine Catchment',
+        description: 'Vulnerable glacial cirque basin and pilgrim route'
       },
       places: fallbackPlaces as PlaceZone[],
       centers: [
@@ -305,15 +406,30 @@ export const api = {
     });
   },
 
-  async getAlerts(filter?: string): Promise<AlertItem[]> {
-    const query = filter && filter !== 'All' ? `?filter=${encodeURIComponent(filter)}` : '';
-    return fetchJson<AlertItem[]>(`${API_BASE}/alerts${query}`, undefined, fallbackAlerts as AlertItem[]);
+  async getAlerts(filter?: string, district?: string, hazard?: string, status?: string): Promise<AlertItem[]> {
+    const params = new URLSearchParams();
+    if (filter && filter !== 'All') params.append('filter', filter);
+    if (district && district !== 'All') params.append('district', district);
+    if (hazard && hazard !== 'All') params.append('hazard', hazard);
+    if (status && status !== 'All') params.append('status', status);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return fetchJson<AlertItem[]>(`${API_BASE}/alerts${queryString}`, undefined, fallbackAlerts as AlertItem[]);
   },
 
   async acknowledgeAlert(id: number): Promise<AlertItem> {
     return fetchJson<AlertItem>(`${API_BASE}/alerts/${id}/ack`, {
       method: 'POST'
     });
+  },
+
+  async acknowledgeAllAlerts(): Promise<AlertItem[]> {
+    return fetchJson<AlertItem[]>(`${API_BASE}/alerts/ack-all`, {
+      method: 'POST'
+    });
+  },
+
+  async getAlertReport(): Promise<AlertReportData> {
+    return fetchJson<AlertReportData>(`${API_BASE}/alerts/report`);
   },
 
   async getLocations(): Promise<{ data: DistrictLocation[]; active: DistrictLocation }> {
@@ -336,10 +452,30 @@ export const api = {
     return res.json();
   },
 
-  async runSimulation(): Promise<SimulationResult> {
+  async predict(params?: {
+    scenario?: string;
+    region?: string;
+    location?: string;
+    sample?: number;
+    forecast_horizon?: number;
+    data?: any;
+  }): Promise<VajraPredictionResponse> {
+    const res = await fetch(`${API_BASE}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {})
+    });
+    if (!res.ok) {
+      throw new Error(`Inference API failed with status ${res.status}`);
+    }
+    return res.json();
+  },
+
+  async runSimulation(scenarioId?: string): Promise<SimulationResult> {
     const res = await fetch(`${API_BASE}/simulation`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scenarioId ? { scenario: scenarioId, scenarioId } : {})
     });
     return res.json();
   },
