@@ -4,7 +4,8 @@ import {
   type AlertItem,
   type ForecastPoint,
   type SignalItem,
-  type DistrictLocationItem
+  type DistrictLocationItem,
+  type ExplainabilityData
 } from './simulationEngine';
 
 export class SessionStateManager {
@@ -124,6 +125,11 @@ export class SessionStateManager {
       centers: scenario.centers,
       explainability: scenario.explainability
     };
+  }
+
+  public getExplainability(): ExplainabilityData {
+    const scenario = this.engine.getCurrentScenario();
+    return scenario.explainability;
   }
 
   public getSimulationStatus() {

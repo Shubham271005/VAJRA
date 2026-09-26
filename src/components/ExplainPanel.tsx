@@ -90,7 +90,8 @@ export default function ExplainPanel({ onClose, data, onFocusRiskZone }: Props) 
   const summary = data?.summary || 'VAJRA Spatio-Temporal ConvLSTM forward pass executed over Mandakini valley.';
   const xaiMethod = data?.xaiMethod || 'Gradient × Input (Integrated Saliency Attribution)';
   const modelName = data?.modelName || 'VajraNowcastNet (ConvLSTM + Dual-Head)';
-  const checkpointEpoch = data?.checkpointEpoch ?? 7;
+  const checkpointEpoch = data?.checkpointEpoch ?? 15;
+  const valLoss = data?.validationLoss ?? 0.0718;
   const overallConfidence = data?.overallConfidence || 'HIGH';
   const confidenceScore = data?.confidenceScore || 92;
   const hazardSplit = data?.hazardSplit || {
@@ -171,7 +172,7 @@ export default function ExplainPanel({ onClose, data, onFocusRiskZone }: Props) 
             <ShieldCheck size={14} className="xai-emerald-icon" />
             <div className="xai-strip-text">
               <small>CHECKPOINT STATUS</small>
-              <strong>Epoch {checkpointEpoch} • Val Loss: 0.2189</strong>
+              <strong>Epoch {checkpointEpoch} • Val Loss: {valLoss.toFixed(4)}</strong>
             </div>
           </div>
         </div>
@@ -386,8 +387,8 @@ export default function ExplainPanel({ onClose, data, onFocusRiskZone }: Props) 
               <div className="xai-calibration-metrics">
                 <div className="xai-calib-card">
                   <span className="xai-calib-label">VALIDATION LOSS</span>
-                  <strong className="xai-calib-val cyan">0.2189</strong>
-                  <small>Dual Weighted MSE + Focal Loss</small>
+                  <strong className="xai-calib-val cyan">{valLoss.toFixed(4)}</strong>
+                  <small>45-Day Uttarakhand Multi-Station</small>
                 </div>
                 <div className="xai-calib-card">
                   <span className="xai-calib-label">HEAVY RAIN POD</span>

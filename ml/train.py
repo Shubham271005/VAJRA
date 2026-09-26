@@ -146,6 +146,33 @@ def train_model(
         json.dump(history, f, indent=2)
     print(f"✓ Full training log saved to: {metrics_path}")
 
+    # Export TorchScript and ONNX formats
+    model.eval()
+    dummy_in = torch.randn(1, 4, 8, 64, 64).to(device)
+    try:
+        ts_model = torch.jit.trace(model, dummy_in)
+        ts_path = os.path.join(WEIGHTS_DIR, "vajra_kedarnath_model.torchscript.pt")
+        ts_model.save(ts_path)
+        print(f"✓ TorchScript model exported to: {ts_path}")
+    except Exception as e:
+        print(f"! TorchScript export: {e}")
+
+    try:
+        onnx_path = os.path.join(WEIGHTS_DIR, "vajra_kedarnath_model.onnx")
+        torch.onnx.export(
+            model,
+            dummy_in,
+            onnx_path,
+            input_names=["atmospheric_sequence"],
+            output_names=["precipitation_maps", "hazard_probabilities"],
+            dynamic_axes={"atmospheric_sequence": {0: "batch_size"}},
+            opset_version=14,
+        )
+        print(f"✓ ONNX model exported to: {onnx_path}")
+    except Exception as e:
+        print(f"! ONNX export: {e}")
+
 
 if __name__ == "__main__":
-    train_model(epochs=15, batch_size=4, learning_rate=1e-3)
+    train_model(epochs=15, batch_size=8, learning_rate=1e-3)
+

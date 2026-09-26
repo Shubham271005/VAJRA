@@ -28,9 +28,11 @@ def normalize_channel(data: torch.Tensor, c_idx: int, c_name: str) -> torch.Tens
 def run_preprocessing():
     print("=== VAJRA Data Preprocessing: Normalization & Sliding Windows ===")
     
-    raw_path = os.path.join(DATA_DIR, "raw_meteo_2013.pt")
+    raw_path = os.path.join(DATA_DIR, "raw_meteo_uttarakhand.pt")
     if not os.path.exists(raw_path):
-        raise FileNotFoundError(f"Raw data not found at {raw_path}. Run acquire_data.py first.")
+        raw_path = os.path.join(DATA_DIR, "raw_meteo_2013.pt")
+    if not os.path.exists(raw_path):
+        raise FileNotFoundError(f"Raw data not found in {DATA_DIR}. Run acquire_data.py first.")
         
     raw = torch.load(raw_path, weights_only=False)
     features = raw["features"]    # (144, 8, 65, 35)

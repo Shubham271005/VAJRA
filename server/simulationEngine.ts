@@ -95,6 +95,9 @@ export interface DistrictLocationItem {
   elevation: string;
   type: string;
   description: string;
+  hazard?: Hazard;
+  leadHours?: number;
+  isMajor?: boolean;
 }
 
 // 3 Deterministic simulation states that accurately mimic convective lifecycle in the Himalayas
@@ -273,6 +276,7 @@ const SCENARIOS = [
 ];
 
 export const DISTRICT_LOCATIONS: DistrictLocationItem[] = [
+  // --- RUDRAPRAYAG DISTRICT ---
   {
     id: 'kedarnath',
     name: 'Kedarnath / Chorabari Sector',
@@ -281,7 +285,10 @@ export const DISTRICT_LOCATIONS: DistrictLocationItem[] = [
     long: 79.067,
     elevation: '3,584 m',
     type: 'Glacial Catchment & Shrine Sanctuary',
-    description: 'Upper Mandakini headwaters & Chorabari moraine lake; primary ground-zero cloudburst trigger zone.'
+    description: 'Upper Mandakini headwaters & Chorabari moraine lake; primary ground-zero cloudburst trigger zone.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: true
   },
   {
     id: 'gaurikund',
@@ -291,7 +298,23 @@ export const DISTRICT_LOCATIONS: DistrictLocationItem[] = [
     long: 79.043,
     elevation: '1,980 m',
     type: 'Steep Gorge Transit Corridor',
-    description: 'Narrow mountain gorge with severe hydraulic channelling, tributary confluence & debris torrent vulnerability.'
+    description: 'Narrow mountain gorge with severe hydraulic channelling, tributary confluence & debris torrent vulnerability.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: true
+  },
+  {
+    id: 'sonprayag',
+    name: 'Sonprayag - Triyuginarayan',
+    district: 'Rudraprayag',
+    lat: 30.630,
+    long: 79.028,
+    elevation: '1,820 m',
+    type: 'River Confluence & Pilgrim Checkpoint',
+    description: 'Confluence of Mandakini & Songanga rivers; vital transit neck subject to tributary surges.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
   },
   {
     id: 'guptkashi',
@@ -301,7 +324,36 @@ export const DISTRICT_LOCATIONS: DistrictLocationItem[] = [
     long: 79.077,
     elevation: '1,319 m',
     type: 'Orographic Crest & Helipad Outpost',
-    description: 'Mid-valley ridge sector subjected to intense thermodynamic CAPE buoyancy, lightning & cross-valley wind shear.'
+    description: 'Mid-valley ridge sector subjected to intense thermodynamic CAPE buoyancy, lightning & cross-valley wind shear.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'ukhimath',
+    name: 'Ukhimath - Chopta Sub-sector',
+    district: 'Rudraprayag',
+    lat: 30.516,
+    long: 79.096,
+    elevation: '1,311 m',
+    type: 'Alpine Foothill & Winter Seat',
+    description: 'Opposite valley flank with heavy slope runoff feeding Madhyamaheshwar Ganga.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'agastyamuni',
+    name: 'Agastyamuni Floodplain',
+    district: 'Rudraprayag',
+    lat: 30.392,
+    long: 79.030,
+    elevation: '1,000 m',
+    type: 'Broad Valley Floodplain & Emergency Strip',
+    description: 'Wide fluvial plain prone to lateral erosion, silt accumulation, and inundation during high discharge.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
   },
   {
     id: 'rudraprayag',
@@ -310,8 +362,633 @@ export const DISTRICT_LOCATIONS: DistrictLocationItem[] = [
     lat: 30.285,
     long: 78.981,
     elevation: '890 m',
-    type: 'District EOC & Confluence',
-    description: 'Confluence of Alaknanda & Mandakini rivers; critical downstream evacuation node and hydro-surge terminus.'
+    type: 'District EOC & River Confluence',
+    description: 'Confluence of Alaknanda & Mandakini rivers; critical downstream evacuation node and hydro-surge terminus.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: true
+  },
+
+  // --- CHAMOLI DISTRICT ---
+  {
+    id: 'badrinath',
+    name: 'Badrinath - Mana Valley',
+    district: 'Chamoli',
+    lat: 30.743,
+    long: 79.493,
+    elevation: '3,300 m',
+    type: 'High Alpine Alaknanda Catchment',
+    description: 'Upper Alaknanda headwaters near Saraswati confluence, prone to glacial lake overflows and rock avalanches.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'joshimath',
+    name: 'Joshimath - Badrinath Corridor',
+    district: 'Chamoli',
+    lat: 30.556,
+    long: 79.567,
+    elevation: '1,890 m',
+    type: 'Alaknanda - Dhauliganga Gorge & Pilgrim Axis',
+    description: 'Steep upper Alaknanda valley subjected to moraine instability, slope creep, and tributary flash flood surges.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: true
+  },
+  {
+    id: 'hemkund',
+    name: 'Hemkund Sahib / Valley of Flowers',
+    district: 'Chamoli',
+    lat: 30.698,
+    long: 79.605,
+    elevation: '4,329 m',
+    type: 'Glacial Cirque & High-Altitude Trek',
+    description: 'Alpine lake basin enclosed by steep peaks; vulnerable to cloud bursts and extreme rapid runoff.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'chamoli',
+    name: 'Chamoli - Gopeshwar Headquarters',
+    district: 'Chamoli',
+    lat: 30.413,
+    long: 79.324,
+    elevation: '1,300 m',
+    type: 'District HQ & Alaknanda Valley Basin',
+    description: 'Administrative hub monitoring middle Alaknanda basin and mountain highway passes.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: true
+  },
+  {
+    id: 'karnaprayag',
+    name: 'Karnaprayag Confluence Basin',
+    district: 'Chamoli',
+    lat: 30.260,
+    long: 79.217,
+    elevation: '860 m',
+    type: 'Pindar - Alaknanda Confluence',
+    description: 'Strategic junction of Pindar glacier runoff and Alaknanda mainstem, prone to severe seasonal flooding.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'gwaldam',
+    name: 'Gwaldam - Tharali Ridge',
+    district: 'Chamoli',
+    lat: 30.015,
+    long: 79.565,
+    elevation: '1,940 m',
+    type: 'Pindar Catchment Divide',
+    description: 'High forested ridge bordering Bageshwar, subject to convective storms and squalls.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'pipalkoti',
+    name: 'Pipalkoti - Alaknanda Valley',
+    district: 'Chamoli',
+    lat: 30.430,
+    long: 79.430,
+    elevation: '1,260 m',
+    type: 'Steep River Corridor & NH-58 Transit',
+    description: 'Constricted valley segment between Joshimath and Chamoli, highly vulnerable to landslides and roadblock surges.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+
+  // --- UTTARKASHI DISTRICT ---
+  {
+    id: 'gangotri',
+    name: 'Gangotri - Gaumukh Glacier',
+    district: 'Uttarkashi',
+    lat: 30.994,
+    long: 78.939,
+    elevation: '3,415 m',
+    type: 'Glacial Source & Bhagirathi Canyon',
+    description: 'Periglacial catchment of Bhagirathi river subject to rapid snowmelt, glacial lake surges, and cloudburst events.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'yamunotri',
+    name: 'Yamunotri - Jankichatti Gorge',
+    district: 'Uttarkashi',
+    lat: 31.014,
+    long: 78.460,
+    elevation: '3,291 m',
+    type: 'Upper Yamuna Canyon & Pilgrim Trail',
+    description: 'Precipitous gorge enclosing Yamuna origin, vulnerable to high-intensity cloudbursts and rockfall.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'harsil',
+    name: 'Harsil - Bhagirathi Valley',
+    district: 'Uttarkashi',
+    lat: 31.037,
+    long: 78.737,
+    elevation: '2,620 m',
+    type: 'Valley Basin & Military Garrison',
+    description: 'Glaciated river terrace with tributary streams prone to debris deposition during extreme convective rain.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'uttarkashi',
+    name: 'Uttarkashi - Bhagirathi Basin',
+    district: 'Uttarkashi',
+    lat: 30.726,
+    long: 78.435,
+    elevation: '1,158 m',
+    type: 'Upper Ganga Gorge & Tectonic Valley',
+    description: 'Steep catchment of Bhagirathi River vulnerable to cloudburst deluge, landslide dams, and flash floods.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'barkot',
+    name: 'Barkot - Yamuna Valley',
+    district: 'Uttarkashi',
+    lat: 30.812,
+    long: 78.208,
+    elevation: '1,220 m',
+    type: 'Yamuna River Foothill Basin',
+    description: 'Central junction in lower Yamuna valley, exposed to convective squalls and flood surges.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'mori',
+    name: 'Mori - Tons Valley',
+    district: 'Uttarkashi',
+    lat: 31.018,
+    long: 78.042,
+    elevation: '1,150 m',
+    type: 'Tons River Gorge & Forested Catchment',
+    description: 'Deep isolated canyon system prone to flash floods from upstream Himachal border tributaries.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+
+  // --- TEHRI GARHWAL DISTRICT ---
+  {
+    id: 'newtehri',
+    name: 'New Tehri - Bhagirathi Reservoir',
+    district: 'Tehri Garhwal',
+    lat: 30.392,
+    long: 78.480,
+    elevation: '1,750 m',
+    type: 'Reservoir Rim & District HQ',
+    description: 'High ridge overlooking Tehri Dam mega-reservoir, monitoring slope stability and squall line propagation.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'chamba',
+    name: 'Chamba - Mussoorie Ridge',
+    district: 'Tehri Garhwal',
+    lat: 30.347,
+    long: 78.397,
+    elevation: '1,600 m',
+    type: 'Trans-Garhwal Mountain Saddle',
+    description: 'Strategic crossroad linking Bhagirathi and Yamuna basins, vulnerable to lightning and high winds.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'devprayag',
+    name: 'Devprayag Ganga Confluence',
+    district: 'Tehri Garhwal',
+    lat: 30.146,
+    long: 78.599,
+    elevation: '830 m',
+    type: 'Alaknanda - Bhagirathi Sacred Confluence',
+    description: 'Origin of River Ganga; critical hydrological metering point integrating discharges of entire Garhwal Himalaya.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+  {
+    id: 'ghuttu',
+    name: 'Ghuttu - Bhilangna Valley',
+    district: 'Tehri Garhwal',
+    lat: 30.589,
+    long: 78.761,
+    elevation: '1,524 m',
+    type: 'Bhilangna Catchment Gateway',
+    description: 'Gateway to Khatling glacier valley prone to rapid cloudburst torrents and channel scouring.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- PAURI GARHWAL DISTRICT ---
+  {
+    id: 'srinagar',
+    name: 'Srinagar Garhwal - Alaknanda Basin',
+    district: 'Pauri Garhwal',
+    lat: 30.222,
+    long: 78.784,
+    elevation: '560 m',
+    type: 'Broad River Terrace & Academic Hub',
+    description: 'Major urban center situated on the wide floodplain of Alaknanda; primary flood receptor downriver from Rudraprayag.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+  {
+    id: 'pauri',
+    name: 'Pauri Headquarters Ridge',
+    district: 'Pauri Garhwal',
+    lat: 30.150,
+    long: 78.780,
+    elevation: '1,814 m',
+    type: 'District Headquarters Hill Crest',
+    description: 'High ridge overlooking the Alaknanda canyon; exposed to severe lightning strikes and squalls.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'kotdwar',
+    name: 'Kotdwar - Khoh River Gateway',
+    district: 'Pauri Garhwal',
+    lat: 29.746,
+    long: 78.528,
+    elevation: '454 m',
+    type: 'Sub-Himalayan Bhabar Gateway',
+    description: 'Drainage outlet for the southern Pauri hills where Khoh river exits into plains with extreme flood velocities.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'lansdowne',
+    name: 'Lansdowne Hill Outpost',
+    district: 'Pauri Garhwal',
+    lat: 29.838,
+    long: 78.685,
+    elevation: '1,706 m',
+    type: 'Cantonment Ridge & Pine Crest',
+    description: 'Pine-forested crest exposed to high orographic rain, lightning, and slope runoff.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- PITHORAGARH DISTRICT ---
+  {
+    id: 'dharchula',
+    name: 'Dharchula - Kali River Border',
+    district: 'Pithoragarh',
+    lat: 29.845,
+    long: 80.535,
+    elevation: '915 m',
+    type: 'Trans-Himalayan Border Gorge',
+    description: 'Precipitous international border gorge of Kali River vulnerable to trans-boundary flash floods and cloudburst debris flows.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: true
+  },
+  {
+    id: 'munsyari',
+    name: 'Munsyari - Panchachuli Basin',
+    district: 'Pithoragarh',
+    lat: 30.067,
+    long: 80.237,
+    elevation: '2,200 m',
+    type: 'Gori Ganga Glacial Valley',
+    description: 'Dramatic amphitheatre facing Panchachuli peaks, prone to intense cloudburst cells and moraine erosion.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'pithoragarh_town',
+    name: 'Pithoragarh Headquarters Basin',
+    district: 'Pithoragarh',
+    lat: 29.583,
+    long: 80.217,
+    elevation: '1,627 m',
+    type: 'Shor Valley & Central EOC',
+    description: 'District command center located in Shor valley, coordinating eastern Kumaon emergency response.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'didihat',
+    name: 'Didihat - Askot Ridge',
+    district: 'Pithoragarh',
+    lat: 29.798,
+    long: 80.258,
+    elevation: '1,725 m',
+    type: 'Goriganga - Kali Ridge Divide',
+    description: 'High ridge experiencing severe thunderstorm activity, high-altitude wind shear and slope failures.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'berinag',
+    name: 'Berinag - Chaukori Valley',
+    district: 'Pithoragarh',
+    lat: 29.774,
+    long: 80.053,
+    elevation: '1,860 m',
+    type: 'Mid-Himalayan Tea Terrace Ridge',
+    description: 'Scenic agricultural ridge prone to squall lines and heavy orographic downpours.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- BAGESHWAR DISTRICT ---
+  {
+    id: 'bageshwar_town',
+    name: 'Bageshwar Confluence Basin',
+    district: 'Bageshwar',
+    lat: 29.839,
+    long: 79.771,
+    elevation: '1,004 m',
+    type: 'Saryu - Gomti Sacred Confluence',
+    description: 'Confluence basin of Saryu and Gomti rivers, subject to rapid hydro-surge and market inundation.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'kapkot',
+    name: 'Kapkot - Saryu Headwaters',
+    district: 'Bageshwar',
+    lat: 29.938,
+    long: 79.904,
+    elevation: '1,120 m',
+    type: 'Upper Saryu Mountain Valley',
+    description: 'Steep valley gateway to Pindari glacier; vulnerable to cloudburst deluges and flash torrents.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'kausani',
+    name: 'Kausani - Baijnath Ridge',
+    district: 'Bageshwar',
+    lat: 29.854,
+    long: 79.601,
+    elevation: '1,890 m',
+    type: 'Panoramic Himalayan Crest',
+    description: 'Exposed ridge with extensive vistas; frequently strikes by convective squalls and high winds.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- ALMORA DISTRICT ---
+  {
+    id: 'almora_town',
+    name: 'Almora - Kosi Valley',
+    district: 'Almora',
+    lat: 29.597,
+    long: 79.659,
+    elevation: '1,638 m',
+    type: 'Ridge-Top Town & Kosi Catchment',
+    description: 'Horse-saddle shaped ridge overlooking Kosi river basin; vulnerable to intense urban runoff and lightning.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'ranikhet',
+    name: 'Ranikhet - Chaubatia Ridge',
+    district: 'Almora',
+    lat: 29.643,
+    long: 79.432,
+    elevation: '1,869 m',
+    type: 'Cantonment Crest & Forest Belt',
+    description: 'High ridge subjected to strong thunderstorm wind gusts and convective precipitation.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'dwarahat',
+    name: 'Dwarahat Valley',
+    district: 'Almora',
+    lat: 29.778,
+    long: 79.427,
+    elevation: '1,510 m',
+    type: 'Ramganga West Tributary Basin',
+    description: 'Agricultural valley prone to stream flash surges during heavy monsoon downpours.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+
+  // --- NAINITAL DISTRICT ---
+  {
+    id: 'nainital_town',
+    name: 'Nainital Lake Basin',
+    district: 'Nainital',
+    lat: 29.392,
+    long: 79.454,
+    elevation: '2,084 m',
+    type: 'Endorheic Lake Basin & Steep Slopes',
+    description: 'Steep slopes enclosing Naini Lake; vulnerable to slope saturation, debris slips and lake surge overflow.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'haldwani',
+    name: 'Haldwani - Gaula River Bhabar',
+    district: 'Nainital',
+    lat: 29.218,
+    long: 79.513,
+    elevation: '424 m',
+    type: 'Foothill Gateway & Bhabar Floodplain',
+    description: 'Critical economic gateway where high-velocity Gaula torrents emerge from hills onto the plains.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'mukteshwar',
+    name: 'Mukteshwar High Ridge',
+    district: 'Nainital',
+    lat: 29.472,
+    long: 79.654,
+    elevation: '2,171 m',
+    type: 'Isolated High Ridge Observatory',
+    description: 'High ridge with extreme exposure to lightning, convective clouds, and hail storms.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'ramnagar',
+    name: 'Ramnagar - Kosi Outflow',
+    district: 'Nainital',
+    lat: 29.395,
+    long: 79.126,
+    elevation: '345 m',
+    type: 'Corbett Foothill Drainage Basin',
+    description: 'Kosi river outflow into plain forests; prone to rapid midnight river surges from upstream cloudbursts.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+
+  // --- DEHRADUN DISTRICT ---
+  {
+    id: 'dehradun_city',
+    name: 'Dehradun Capital Basin',
+    district: 'Dehradun',
+    lat: 30.316,
+    long: 78.032,
+    elevation: '640 m',
+    type: 'Sub-Himalayan Drainage & Urban Basin',
+    description: 'Inter-montane Dun valley catchment with high-velocity urban runoff, seasonal torrential choes, and thunderstorm fronts.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'rishikesh',
+    name: 'Rishikesh - Ganga Gorge Outflow',
+    district: 'Dehradun',
+    lat: 30.087,
+    long: 78.268,
+    elevation: '372 m',
+    type: 'Foothill Gorge & Holy Confluence Gate',
+    description: 'Points where River Ganga exits the Outer Himalayan ranges into the Indo-Gangetic plains; downstream flood threshold.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+  {
+    id: 'mussoorie',
+    name: 'Mussoorie - Queen of Hills Ridge',
+    district: 'Dehradun',
+    lat: 30.459,
+    long: 78.066,
+    elevation: '2,005 m',
+    type: 'Frontal Himalayan Ridge',
+    description: 'Frontal mountain barrier causing sharp orographic uplift of moist southerly monsoon currents.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'chakrata',
+    name: 'Chakrata - Jaunsar High Pass',
+    district: 'Dehradun',
+    lat: 30.702,
+    long: 77.869,
+    elevation: '2,118 m',
+    type: 'Northwestern Border Ridge',
+    description: 'High ridge overlooking Yamuna and Tons watersheds, exposed to severe lightning and cloudburst systems.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- CHAMPAWAT DISTRICT ---
+  {
+    id: 'champawat_town',
+    name: 'Champawat - Lohaghat Ridge',
+    district: 'Champawat',
+    lat: 29.334,
+    long: 80.091,
+    elevation: '1,610 m',
+    type: 'Eastern Kumaon Hill Saddle',
+    description: 'District headquarters ridge prone to heavy convective spells and tributary flash torrents.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'tanakpur',
+    name: 'Tanakpur - Sharda River Gateway',
+    district: 'Champawat',
+    lat: 29.072,
+    long: 80.111,
+    elevation: '255 m',
+    type: 'Sharda River Barrage Basin',
+    description: 'Barrage terminus of trans-boundary Kali/Sharda river; primary plains flood monitoring post.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+
+  // --- HARIDWAR DISTRICT ---
+  {
+    id: 'haridwar_city',
+    name: 'Haridwar - Upper Ganga Plains',
+    district: 'Haridwar',
+    lat: 29.945,
+    long: 78.164,
+    elevation: '314 m',
+    type: 'Ganga Canal Barrage & Pilgrimage Plain',
+    description: 'Critical hydraulic regulator node controlling Ganga canal diversion and major pilgrimage ghats.',
+    hazard: 'Flash Flood',
+    leadHours: 5,
+    isMajor: false
+  },
+  {
+    id: 'roorkee',
+    name: 'Roorkee - Solani River Basin',
+    district: 'Haridwar',
+    lat: 29.854,
+    long: 77.888,
+    elevation: '268 m',
+    type: 'Alluvial Plains & Solani Aqueduct',
+    description: 'Plains urban zone susceptible to seasonal river flooding and urban waterlogging.',
+    hazard: 'Thunderstorm',
+    leadHours: 2,
+    isMajor: false
+  },
+
+  // --- UDHAM SINGH NAGAR DISTRICT ---
+  {
+    id: 'rudrapur',
+    name: 'Rudrapur - Terai Basin',
+    district: 'Udham Singh Nagar',
+    lat: 28.980,
+    long: 79.400,
+    elevation: '205 m',
+    type: 'Terai Industrial Center & Plain',
+    description: 'Southernmost district headquarters; low-lying drainage plain susceptible to river backflow and flooding.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+  {
+    id: 'kashipur',
+    name: 'Kashipur - Dhela River Catchment',
+    district: 'Udham Singh Nagar',
+    lat: 29.210,
+    long: 78.950,
+    elevation: '218 m',
+    type: 'Agricultural Terai Floodplain',
+    description: 'Flat river basin prone to agricultural waterlogging and thunderstorm squalls.',
+    hazard: 'Thunderstorm',
+    leadHours: 2,
+    isMajor: false
   }
 ];
 

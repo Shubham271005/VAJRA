@@ -143,7 +143,7 @@ app.get('/api/locations', (_req, res) => {
 
 // POST /api/locations/select
 app.post('/api/locations/select', (req, res) => {
-  const { locationId } = req.body;
+  const locationId = req.body.locationId || req.body.locId || req.body.id;
   if (!locationId) {
     return res.status(400).json({ success: false, message: 'Missing locationId' });
   }
@@ -155,6 +155,15 @@ app.post('/api/locations/select', (req, res) => {
     signals: sessionState.getSignals(),
     hazards: sessionState.getHazards(),
     alerts: sessionState.getAlerts()
+  });
+});
+
+// GET /api/explain
+app.get('/api/explain', (_req, res) => {
+  res.json({
+    success: true,
+    data: sessionState.getExplainability(),
+    location: sessionState.getActiveLocation()
   });
 });
 

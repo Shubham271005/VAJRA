@@ -60,7 +60,10 @@ export interface DistrictLocation {
   elevation: string;
   type: string;
   description: string;
+  hazard?: Hazard;
+  leadHours?: number;
   isActive?: boolean;
+  isMajor?: boolean;
 }
 
 export interface XaiAttributionItem {
@@ -79,6 +82,7 @@ export interface ExplainabilityData {
   xaiMethod?: string;
   modelName?: string;
   checkpointEpoch?: number;
+  validationLoss?: number;
   xaiAttributions?: XaiAttributionItem[];
   rows: [string, string, string][];
   overallConfidence: 'HIGH' | 'VERY HIGH' | 'MODERATE' | string;

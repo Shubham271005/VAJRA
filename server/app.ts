@@ -146,7 +146,7 @@ app.get('/api/locations', (_req: Request, res: Response) => {
 
 // POST /api/locations/select
 app.post('/api/locations/select', (req: Request, res: Response) => {
-  const { locationId } = req.body;
+  const locationId = req.body.locationId || req.body.locId || req.body.id;
   if (!locationId) {
     res.status(400).json({ success: false, message: 'Missing locationId' });
     return;
@@ -155,8 +155,10 @@ app.post('/api/locations/select', (req: Request, res: Response) => {
   res.json({
     success: true,
     active,
+    forecast: sessionState.getForecast(),
     signals: sessionState.getSignals(),
-    hazards: sessionState.getHazards()
+    hazards: sessionState.getHazards(),
+    alerts: sessionState.getAlerts()
   });
 });
 

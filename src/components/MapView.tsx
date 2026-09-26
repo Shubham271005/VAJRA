@@ -320,10 +320,15 @@ const MANDAKINI_POPULATION_DATA: PopulationCluster[] = [
 ];
 
 const DEFAULT_CENTERS: RiskCenter[] = [
-  { lat: 30.735, long: 79.067, r: 0.045, level: "HIGH", hazard: "Cloudburst" },
-  { lat: 30.652, long: 79.043, r: 0.040, level: "HIGH", hazard: "Flash Flood" },
-  { lat: 30.523, long: 79.077, r: 0.035, level: "HIGH", hazard: "Thunderstorm" },
-  { lat: 30.285, long: 78.981, r: 0.030, level: "HIGH", hazard: "Flash Flood" },
+  { lat: 30.735, long: 79.067, r: 0.052, level: "HIGH", hazard: "Cloudburst" },
+  { lat: 30.652, long: 79.043, r: 0.048, level: "HIGH", hazard: "Flash Flood" },
+  { lat: 30.523, long: 79.077, r: 0.038, level: "HIGH", hazard: "Thunderstorm" },
+  { lat: 30.285, long: 78.981, r: 0.035, level: "MODERATE", hazard: "Flash Flood" },
+  { lat: 30.556, long: 79.567, r: 0.045, level: "HIGH", hazard: "Flash Flood" },
+  { lat: 30.258, long: 79.217, r: 0.038, level: "MODERATE", hazard: "Flash Flood" },
+  { lat: 30.726, long: 78.435, r: 0.048, level: "HIGH", hazard: "Cloudburst" },
+  { lat: 29.845, long: 80.535, r: 0.042, level: "HIGH", hazard: "Flash Flood" },
+  { lat: 30.316, long: 78.032, r: 0.036, level: "MODERATE", hazard: "Thunderstorm" },
 ];
 
 export default function MapView({

@@ -57,8 +57,9 @@ class VajraAPIHandler(BaseHTTPRequestHandler):
         # Live Nowcast Prediction endpoint
         if path in ["/api/predict", "/api/nowcast", "/api/simulation"]:
             sample_idx = int(query.get("sample", [15])[0])
+            loc_id = query.get("location", [None])[0]
             try:
-                result = ENGINE.run_inference(sample_idx=sample_idx)
+                result = ENGINE.run_inference(sample_idx=sample_idx, location_id=loc_id)
                 self._send_json_response(200, result)
             except Exception as e:
                 self._send_json_response(500, {"success": False, "error": str(e)})
@@ -82,8 +83,9 @@ class VajraAPIHandler(BaseHTTPRequestHandler):
                     pass
 
             sample_idx = body.get("sample", 15)
+            loc_id = body.get("location", None)
             try:
-                result = ENGINE.run_inference(sample_idx=sample_idx)
+                result = ENGINE.run_inference(sample_idx=sample_idx, location_id=loc_id)
                 self._send_json_response(200, result)
             except Exception as e:
                 self._send_json_response(500, {"success": False, "error": str(e)})

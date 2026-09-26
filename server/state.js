@@ -183,6 +183,17 @@ export class SessionStateManager {
     };
   }
 
+  getExplainability() {
+    if (this.latestAiInference?.locations?.[this.activeLocationId]?.explainability) {
+      return this.latestAiInference.locations[this.activeLocationId].explainability;
+    }
+    if (this.latestAiInference?.explainability) {
+      return this.latestAiInference.explainability;
+    }
+    const scenario = this.engine.getCurrentScenario();
+    return scenario.explainability;
+  }
+
   getSimulationStatus() {
     const stats = this.engine.getStats();
     const scenario = this.engine.getCurrentScenario();
