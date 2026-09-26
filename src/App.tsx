@@ -803,27 +803,67 @@ function App() {
     }
   };
 
+  const simulationAbortRef = useRef<AbortController | null>(null);
+  const simIntervalRef = useRef<any>(null);
+  const simTimeoutRef = useRef<any>(null);
+  const simFinishTimeoutRef = useRef<any>(null);
+
+  // Cancel running Nowcast Simulation
+  const cancelSimulation = () => {
+    if (simulationAbortRef.current) {
+      simulationAbortRef.current.abort();
+      simulationAbortRef.current = null;
+    }
+    if (simIntervalRef.current) {
+      clearInterval(simIntervalRef.current);
+      simIntervalRef.current = null;
+    }
+    if (simTimeoutRef.current) {
+      clearTimeout(simTimeoutRef.current);
+      simTimeoutRef.current = null;
+    }
+    if (simFinishTimeoutRef.current) {
+      clearTimeout(simFinishTimeoutRef.current);
+      simFinishTimeoutRef.current = null;
+    }
+    setSimulating(false);
+    setSimStep(0);
+  };
+
   // Run Nowcast Simulation
   const runSimulation = async (scenarioId?: any) => {
     if (simulating) return;
+
+    // Reset previous timers
+    if (simulationAbortRef.current) simulationAbortRef.current.abort();
+    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+    if (simTimeoutRef.current) clearTimeout(simTimeoutRef.current);
+    if (simFinishTimeoutRef.current) clearTimeout(simFinishTimeoutRef.current);
+
+    const abortController = new AbortController();
+    simulationAbortRef.current = abortController;
+
     setSimulating(true);
     setSimStep(0);
 
     // Visual step progression in sync with backend pipeline simulation
     let s = 0;
-    const stepInterval = setInterval(() => {
+    simIntervalRef.current = setInterval(() => {
       s++;
       setSimStep(s);
       if (s >= 6) {
-        clearInterval(stepInterval);
+        if (simIntervalRef.current) clearInterval(simIntervalRef.current);
       }
     }, 550);
 
     try {
-      const result = await api.runSimulation(typeof scenarioId === 'string' ? scenarioId : undefined);
+      const result = await api.runSimulation(
+        typeof scenarioId === 'string' ? scenarioId : undefined,
+        abortController.signal
+      );
       // Ensure visual steps finish cleanly before resolving modal
-      setTimeout(() => {
-        clearInterval(stepInterval);
+      simTimeoutRef.current = setTimeout(() => {
+        if (simIntervalRef.current) clearInterval(simIntervalRef.current);
         setSimStep(6);
         if (result && result.success) {
           if (result.mode === 'REAL_AI_MODEL_INFERENCE') setAiModelMode(true);
@@ -843,11 +883,21 @@ function App() {
             if (result.hazards.data_lineage) setDataLineage(result.hazards.data_lineage);
           }
         }
-        setTimeout(() => setSimulating(false), 450);
+        simFinishTimeoutRef.current = setTimeout(() => {
+          setSimulating(false);
+          simulationAbortRef.current = null;
+        }, 450);
       }, 3400);
-    } catch (err) {
-      console.warn('Simulation run failed:', err);
-      setTimeout(() => setSimulating(false), 2000);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        console.log('Nowcast simulation aborted by user');
+      } else {
+        console.warn('Simulation run failed:', err);
+      }
+      simFinishTimeoutRef.current = setTimeout(() => {
+        setSimulating(false);
+        simulationAbortRef.current = null;
+      }, 300);
     }
   };
 
@@ -1099,6 +1149,12 @@ function App() {
         currentScenario={scenarioName}
         isSimulating={simulating}
       />
+      {simulating && (
+        <SimulationOverlay
+          step={simStep}
+          onCancel={cancelSimulation}
+        />
+      )}
     </div>
   )
 }
@@ -1209,7 +1265,6 @@ function Overview(p: any) {
         />
       </section>
       <Pipeline />
-      {p.simulating && <SimulationOverlay step={p.simStep} />}
     </>
   )
 }
@@ -2415,7 +2470,7 @@ function StatusPage({ onRunTest, aiConnected, aiModelMode }: { onRunTest: () => 
 
 export default App
 
-function SimulationOverlay({ step }: { step: number }) {
+function SimulationOverlay({ step, onCancel }: { step: number; onCancel: () => void }) {
   const steps = [
     'Ingesting INSAT-3D TIR (CTT) & Sounder IWV columns...',
     'Fusing IMD/ERA5 Atmospheric Grids (CAPE, CIN, Wind Convergence, Shear)...',
@@ -2426,11 +2481,21 @@ function SimulationOverlay({ step }: { step: number }) {
   ];
 
   return (
-    <div className="sim-overlay">
-      <div className="sim-modal">
+    <div className="sim-overlay" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="sim-modal" role="dialog" aria-modal="true" aria-labelledby="sim-modal-title">
+        <button
+          type="button"
+          className="sim-modal-close"
+          onClick={onCancel}
+          title="Cancel nowcast simulation"
+          aria-label="Cancel simulation"
+        >
+          <X size={16} />
+        </button>
+
         <div className="sim-orbit"><Radar size={28} /></div>
         <div className="kicker">VAJRA NOWCAST ENGINE</div>
-        <h2>Executing Neural Nowcast</h2>
+        <h2 id="sim-modal-title">Executing Neural Nowcast</h2>
         <p>Live ConvLSTM forward pass across all 53 Uttarakhand operational sectors</p>
         <div className="sim-steps">
           {steps.map((x, i) => (
@@ -2444,6 +2509,12 @@ function SimulationOverlay({ step }: { step: number }) {
         </div>
         <div className="sim-progress">
           <i style={{ width: `${Math.min(100, Math.round((step / 6) * 100))}%` }} />
+        </div>
+
+        <div className="sim-modal-actions">
+          <button type="button" className="sim-cancel-btn" onClick={onCancel}>
+            <X size={13} /> Cancel Simulation
+          </button>
         </div>
       </div>
     </div>

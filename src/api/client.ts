@@ -471,11 +471,12 @@ export const api = {
     return res.json();
   },
 
-  async runSimulation(scenarioId?: string): Promise<SimulationResult> {
+  async runSimulation(scenarioId?: string, signal?: AbortSignal): Promise<SimulationResult> {
     const res = await fetch(`${API_BASE}/simulation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scenarioId ? { scenario: scenarioId, scenarioId } : {})
+      body: JSON.stringify(scenarioId ? { scenario: scenarioId, scenarioId } : {}),
+      signal
     });
     return res.json();
   },
