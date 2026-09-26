@@ -22,6 +22,7 @@ app.get('/api', (_req: Request, res: Response) => {
     environment: 'PROTOTYPE-SIMULATION',
     endpoints: [
       '/api/health',
+      '/api/predict',
       '/api/signals',
       '/api/forecast',
       '/api/hazards',
@@ -30,6 +31,41 @@ app.get('/api', (_req: Request, res: Response) => {
       '/api/simulation'
     ]
   });
+});
+
+// POST /api/predict - Dedicated Spatiotemporal AI Inference Endpoint
+app.post('/api/predict', async (req: Request, res: Response) => {
+  try {
+    const aiRes = await fetch('http://localhost:8000/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body || {}),
+      signal: AbortSignal.timeout(3000)
+    });
+    if (aiRes.ok) {
+      const data = await aiRes.json();
+      return res.json(data);
+    }
+  } catch (_err) {
+    // Port 8000 offline
+  }
+  return res.json(sessionState.getAlerts());
+});
+
+// GET /api/predict - Direct query inference
+app.get('/api/predict', async (req: Request, res: Response) => {
+  try {
+    const params = new URLSearchParams(req.query as any).toString();
+    const url = `http://localhost:8000/api/predict${params ? '?' + params : ''}`;
+    const aiRes = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (aiRes.ok) {
+      const data = await aiRes.json();
+      return res.json(data);
+    }
+  } catch (_err) {
+    // Port 8000 offline
+  }
+  return res.json(sessionState.getAlerts());
 });
 
 // GET /api/signals

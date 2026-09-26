@@ -1,3 +1,6 @@
+// @ts-ignore
+import { modelCache } from './modelCache.js';
+
 export type Hazard = 'Cloudburst' | 'Flash Flood' | 'Thunderstorm';
 export type RiskLevel = 'HIGH' | 'MODERATE' | 'WATCH';
 
@@ -1001,99 +1004,48 @@ export const DISTRICT_LOCATIONS: DistrictLocationItem[] = [
   }
 ];
 
-function generateAllSectorAlerts(rawAlerts: AlertItem[], scenarioIndex: number, timestamp: string): AlertItem[] {
-  const result: AlertItem[] = [];
-  const coveredIds = new Set<string>();
-
-  for (const a of rawAlerts) {
-    const locMatch = DISTRICT_LOCATIONS.find(l => l.name.toLowerCase().includes(a.location.toLowerCase()) || a.location.toLowerCase().includes(l.name.toLowerCase()));
-    const locId = locMatch?.id || 'rudraprayag';
-    coveredIds.add(locId);
-    result.push({
-      ...a,
-      locationId: locId,
-      district: locMatch?.district || 'Rudraprayag',
-      elevation: locMatch?.elevation || '1,800 m',
-      lat: locMatch?.lat || 30.735,
-      long: locMatch?.long || 79.067,
-      protocol: a.severity === 'HIGH'
-        ? (a.event === 'Cloudburst' ? 'SOP-RED-01 (Mandatory Valley Evacuation & Pilgrim Shelter Halt)' : (a.event === 'Flash Flood' ? 'SOP-RED-02 (Riverfront Clearance, Highway Closure & Barrage Warning)' : 'SOP-RED-03 (Severe Squall Alert & Heli-Yatra Flight Grounding)'))
-        : (a.severity === 'MODERATE' ? 'SOP-ORANGE-01 (Pre-position SDRF Teams & Catchment Surveillance)' : 'SOP-YELLOW-01 (Continuous Rain-Gauge Vigilance)'),
-      rainfall: a.severity === 'HIGH' ? 64.2 : 28.5,
-      slope: '32°',
-      timeDispatched: timestamp
-    });
+function generateAllSectorAlerts(_rawAlerts: AlertItem[], scenarioIndex: number, timestamp: string): AlertItem[] {
+  // If base scenario (scenarioIndex === 0), use the neural model cache alerts directly
+  if (scenarioIndex === 0) {
+    return JSON.parse(JSON.stringify(modelCache.alerts));
   }
 
-  for (const loc of DISTRICT_LOCATIONS) {
-    if (coveredIds.has(loc.id)) continue;
-    let severity: RiskLevel = 'WATCH';
-    let prob = 42 + (loc.id.length % 18);
-    let lead = `${loc.leadHours || 2} hrs`;
-    if (loc.isMajor) {
-      if (scenarioIndex === 1) {
-        severity = 'HIGH';
-        prob = 82 + (loc.id.length % 12);
-        lead = '1 hr';
+  // Scale from the calibrated neural baseline:
+  return (modelCache.alerts as AlertItem[]).map(baseAlert => {
+    const alert: AlertItem = { ...baseAlert, timeDispatched: timestamp };
+    if (scenarioIndex === 1) {
+      if (baseAlert.severity === 'HIGH') {
+        alert.prob = Math.min(98, baseAlert.prob + 6);
+        alert.status = 'ACTIVE' as const;
+      } else if (baseAlert.severity === 'MODERATE') {
+        alert.prob = Math.min(74, baseAlert.prob + 4);
+        alert.status = 'ACTIVE' as const;
       } else {
-        severity = 'MODERATE';
-        prob = 68 + (loc.id.length % 14);
+        alert.prob = Math.max(0, Math.min(38, baseAlert.prob + (baseAlert.id % 4) - 2));
+        alert.status = 'WATCH' as const;
       }
-    } else if (scenarioIndex === 1) {
-      severity = 'MODERATE';
-      prob = 62 + (loc.id.length % 15);
+    } else if (scenarioIndex === 2) {
+      if (baseAlert.severity === 'HIGH') {
+        alert.prob = Math.max(45, baseAlert.prob - 22);
+        alert.severity = (alert.prob >= 75 ? 'HIGH' : (alert.prob >= 50 ? 'MODERATE' : 'WATCH')) as RiskLevel;
+        alert.status = 'MONITOR' as const;
+      } else if (baseAlert.severity === 'MODERATE') {
+        alert.prob = Math.max(25, baseAlert.prob - 18);
+        alert.severity = (alert.prob >= 50 ? 'MODERATE' : 'WATCH') as RiskLevel;
+        alert.status = 'MONITOR' as const;
+      } else {
+        alert.prob = Math.max(0, baseAlert.prob - 8);
+        alert.severity = 'WATCH' as RiskLevel;
+        alert.status = 'WATCH' as const;
+      }
     }
-
-    const hazard: Hazard = loc.hazard || 'Thunderstorm';
-    let protocol = 'SOP-YELLOW-01 (Continuous Rain-Gauge Vigilance & Drainage Readiness)';
-    if (severity === 'HIGH') {
-      protocol = hazard === 'Cloudburst'
-        ? 'SOP-RED-01 (Mandatory Valley Evacuation & Pilgrim Shelter Halt)'
-        : (hazard === 'Flash Flood' ? 'SOP-RED-02 (Riverfront Clearance, Highway Closure & Barrage Warning)' : 'SOP-RED-03 (Severe Squall Alert & Heli-Yatra Flight Grounding)');
-    } else if (severity === 'MODERATE') {
-      protocol = hazard === 'Cloudburst'
-        ? 'SOP-ORANGE-01 (Pre-position SDRF Teams & Catchment Surveillance)'
-        : (hazard === 'Flash Flood' ? 'SOP-ORANGE-02 (Hydrological Watch & Low-Lying Ghat Barricading)' : 'SOP-ORANGE-03 (Power Substation Isolation & Ridge Staging)');
-    }
-
-    const trigger = hazard === 'Cloudburst'
-      ? `Glaciated CTT -52°C • Orographic Lift over ${loc.elevation}`
-      : (hazard === 'Flash Flood' ? `Hydraulic Basin Inundation • Runoff Convergence` : `Convective Instability • High-Altitude Ridge Wind Shear`);
-
-    result.push({
-      id: result.length + 1,
-      locationId: loc.id,
-      district: loc.district,
-      elevation: loc.elevation,
-      lat: loc.lat,
-      long: loc.long,
-      severity,
-      event: hazard,
-      location: loc.name,
-      prob,
-      lead,
-      trigger,
-      status: severity === 'HIGH' ? 'ACTIVE' : (severity === 'MODERATE' ? 'MONITOR' : 'WATCH'),
-      actionRecommended: loc.description,
-      protocol,
-      rainfall: severity === 'HIGH' ? 52.4 : (severity === 'MODERATE' ? 24.8 : 8.2),
-      slope: '26°',
-      timeDispatched: timestamp
-    });
-  }
-
-  result.sort((a, b) => {
+    return alert;
+  }).sort((a, b) => {
     const sevOrder: Record<string, number> = { HIGH: 0, MODERATE: 1, WATCH: 2 };
     const diff = (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3);
     if (diff !== 0) return diff;
     return b.prob - a.prob;
-  });
-
-  result.forEach((a, idx) => {
-    a.id = idx + 1;
-  });
-
-  return result;
+  }).map((a, idx) => ({ ...a, id: idx + 1 }));
 }
 
 export class SimulationEngine {
