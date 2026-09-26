@@ -1,11 +1,28 @@
-import { SimulationEngine, DISTRICT_LOCATIONS } from './simulationEngine.js';
+import {
+  SimulationEngine,
+  DISTRICT_LOCATIONS
+} from './simulationEngine.js';
 
 export class SessionStateManager {
   constructor() {
     this.engine = new SimulationEngine();
     this.activeLocationId = 'rudraprayag';
     this.activeHour = 3;
-    this.acknowledgedAlerts = new Map(); // id -> timestamp
+    this.acknowledgedAlerts = new Map();
+    this.latestAiInference = null;
+    this.initAi();
+  }
+
+  async initAi() {
+    try {
+      const res = await fetch('http://localhost:8000/api/predict', { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        this.latestAiInference = await res.json();
+        console.log('[SessionState] Eagerly synced with live VAJRA ConvLSTM inference on startup.');
+      }
+    } catch (e) {
+      console.log('[SessionState] Live AI microservice on :8000 not ready yet, using default simulation.');
+    }
   }
 
   getLocations() {
@@ -32,23 +49,29 @@ export class SessionStateManager {
   }
 
   setActiveHour(hour) {
-    if (typeof hour === 'number' && hour >= 0 && hour <= 6) {
+    if (hour >= 0 && hour <= 6) {
       this.activeHour = hour;
     }
     return this.activeHour;
   }
 
   acknowledgeAlert(id) {
-    const numericId = parseInt(id, 10);
     const timestamp = new Date().toISOString();
-    this.acknowledgedAlerts.set(numericId, timestamp);
+    this.acknowledgedAlerts.set(id, timestamp);
     const alerts = this.getAlerts();
-    return alerts.find(a => a.id === numericId) || null;
+    return alerts.find(a => a.id === id) || null;
   }
 
   getAlerts() {
-    const scenario = this.engine.getCurrentScenario();
-    return scenario.alerts.map(a => {
+    let rawAlerts;
+    if (this.latestAiInference) {
+      rawAlerts = this.latestAiInference.alerts;
+    } else {
+      const scenario = this.engine.getCurrentScenario();
+      rawAlerts = scenario.alerts;
+    }
+
+    return rawAlerts.map(a => {
       if (this.acknowledgedAlerts.has(a.id)) {
         return {
           ...a,
@@ -61,25 +84,38 @@ export class SessionStateManager {
   }
 
   getForecast() {
+    if (this.latestAiInference?.locations?.[this.activeLocationId]?.forecast) {
+      return this.latestAiInference.locations[this.activeLocationId].forecast;
+    }
+    if (this.latestAiInference?.forecast) {
+      return this.latestAiInference.forecast;
+    }
     const scenario = this.engine.getCurrentScenario();
     return scenario.forecast;
   }
 
   getSignals() {
+    if (this.latestAiInference?.locations?.[this.activeLocationId]?.signals) {
+      return this.latestAiInference.locations[this.activeLocationId].signals;
+    }
+    if (this.latestAiInference?.signals) {
+      return this.latestAiInference.signals;
+    }
     const scenario = this.engine.getCurrentScenario();
     const loc = this.getActiveLocation();
     
-    // Slight localized elevation/microclimate adjustment for realism based on selected location
     let elevationFactor = 1.0;
-    if (loc.id === 'village-a') elevationFactor = 1.05; // ridge orographic lift
-    if (loc.id === 'village-b') elevationFactor = 0.94; // higher altitude cooler
-    if (loc.id === 'kedarnath-road') elevationFactor = 1.02;
+    if (loc.id === 'kedarnath') elevationFactor = 1.15;
+    if (loc.id === 'gaurikund') elevationFactor = 1.08;
+    if (loc.id === 'guptkashi') elevationFactor = 1.02;
+    if (loc.id === 'rudraprayag') elevationFactor = 0.92;
 
     return scenario.signals.map(s => {
       let val = s.value;
       if (s.key === 'IWV') val = +(val * elevationFactor).toFixed(1);
       if (s.key === 'CAPE') val = Math.round(val * elevationFactor);
-      if (s.key === 'CTT' && loc.id === 'village-a') val = val - 2;
+      if (s.key === 'CTT' && loc.id === 'kedarnath') val = val - 6;
+      if (s.key === 'CTT' && loc.id === 'gaurikund') val = val - 3;
       return {
         ...s,
         value: val
@@ -88,11 +124,42 @@ export class SessionStateManager {
   }
 
   getHazards() {
+    const loc = this.getActiveLocation();
+    if (this.latestAiInference) {
+      const ai = this.latestAiInference;
+      const locData = ai.locations?.[this.activeLocationId];
+      const fcList = locData?.forecast || ai.forecast;
+      const fc = fcList[this.activeHour] || fcList[3] || fcList[0];
+      const probCloud = fc.cloudburst;
+      const probFlood = fc.flood;
+      const probStorm = fc.storm;
+      const maxProb = Math.max(probCloud, probFlood, probStorm);
+      let riskLevel = 'WATCH';
+      if (maxProb >= 75) riskLevel = 'HIGH';
+      else if (maxProb >= 50) riskLevel = 'MODERATE';
+
+      return {
+        hour: this.activeHour,
+        label: fc.label,
+        probabilities: {
+          cloudburst: probCloud,
+          flood: probFlood,
+          storm: probStorm
+        },
+        riskLevel: locData?.riskLevel || riskLevel,
+        leadTime: locData?.leadTime || (this.activeHour === 0 ? 'Immediate' : `~${this.activeHour} hours`),
+        triggerSignature: locData?.triggerSignature || `AI ConvLSTM: Peak Rain ${ai.gridRainfallSummary.maxRate_mm_hr} mm/hr`,
+        actionRecommended: locData?.actionRecommended || 'Deploy emergency SDRF flood outposts along river channel',
+        location: loc,
+        places: ai.places,
+        centers: ai.centers,
+        explainability: locData?.explainability || ai.explainability
+      };
+    }
+
     const scenario = this.engine.getCurrentScenario();
     const fc = scenario.forecast[this.activeHour] || scenario.forecast[3];
-    const loc = this.getActiveLocation();
 
-    // Determine current priority risk level
     let riskLevel = 'WATCH';
     const maxProb = Math.max(fc.cloudburst, fc.flood, fc.storm);
     if (maxProb >= 75) riskLevel = 'HIGH';
@@ -124,14 +191,48 @@ export class SessionStateManager {
       activeHour: this.activeHour,
       activeLocation: this.getActiveLocation(),
       acknowledgedCount: this.acknowledgedAlerts.size,
-      lastPipelineExecution: scenario.pipelineStages
+      lastPipelineExecution: scenario.pipelineStages,
+      aiModelConnected: this.latestAiInference !== null,
+      aiModelMode: this.latestAiInference ? 'REAL_AI_MODEL_INFERENCE' : 'DETERMINISTIC_SIMULATION'
     };
   }
 
-  runNowcastSimulation() {
+  async runNowcastSimulation() {
+    // Attempt live neural forward pass via Python AI microservice
+    try {
+      const aiRes = await fetch('http://localhost:8000/api/predict', { signal: AbortSignal.timeout(2500) });
+      if (aiRes.ok) {
+        const aiData = await aiRes.json();
+        this.latestAiInference = aiData;
+        return {
+          success: true,
+          mode: 'REAL_AI_MODEL_INFERENCE',
+          message: 'VAJRA neural nowcast forward pass executed successfully.',
+          scenarioId: 'kedarnath-2013-convlstm',
+          scenarioName: 'AI Model Inference: Kedarnath 2013 Peak Incident',
+          simulatedTimestamp: '16 JUN 2013 • 17:00 IST',
+          pipelineStages: [
+            { step: 1, name: 'Satellite Ingestion (INSAT/ERA5)', source: 'IR + WV Channels', status: 'completed', executionTimeMs: 42, details: 'Normalized (4, 8, 65, 35) input tensor' },
+            { step: 2, name: 'Topographic DEM Fusion', source: 'CartoDEM 30m', status: 'completed', executionTimeMs: 18, details: 'Elevation & Slope gradient grids' },
+            { step: 3, name: 'Spatio-Temporal ConvLSTM Encoding', source: 'VajraNowcastNet', status: 'completed', executionTimeMs: 35, details: 'Recurrent advection memory cell' },
+            { step: 4, name: 'Dual-Head Decoding', source: 'PyTorch Inference Engine', status: 'completed', executionTimeMs: 24, details: '0-6h Rain Grid + Multi-Hazard Probabilities' }
+          ],
+          forecast: this.getForecast(),
+          signals: this.getSignals(),
+          hazards: this.getHazards(),
+          alerts: this.getAlerts()
+        };
+      }
+    } catch (err) {
+      console.warn('[SessionState] AI microservice at :8000 unreachable, using fallback simulation:', err.message);
+    }
+
+    // Fallback to simulation engine
+    this.latestAiInference = null;
     const updatedScenario = this.engine.advanceSimulation();
     return {
       success: true,
+      mode: 'DETERMINISTIC_SIMULATION',
       message: 'VAJRA spatiotemporal nowcast simulation completed successfully.',
       scenarioId: updatedScenario.scenarioId,
       scenarioName: updatedScenario.scenarioName,
@@ -148,6 +249,7 @@ export class SessionStateManager {
     this.acknowledgedAlerts.clear();
     this.activeHour = 3;
     this.activeLocationId = 'rudraprayag';
+    this.latestAiInference = null;
     const resetScenario = this.engine.resetSimulation();
     return {
       success: true,

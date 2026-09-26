@@ -4,3 +4,8 @@ dist/
 .DS_Store
 .vercel
 .env*
+.venv/
+__pycache__/
+*.pt
+*.onnx
+data/

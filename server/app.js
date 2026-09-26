@@ -151,8 +151,10 @@ app.post('/api/locations/select', (req, res) => {
   res.json({
     success: true,
     active,
+    forecast: sessionState.getForecast(),
     signals: sessionState.getSignals(),
-    hazards: sessionState.getHazards()
+    hazards: sessionState.getHazards(),
+    alerts: sessionState.getAlerts()
   });
 });
 
@@ -165,14 +167,16 @@ app.get('/api/simulation', (_req, res) => {
   });
 });
 
-// POST /api/simulation - Run Nowcast Simulation
-app.post('/api/simulation', (_req, res) => {
-  const result = sessionState.runNowcastSimulation();
+// POST /api/simulation - Run Nowcast Simulation (triggers live PyTorch model if online)
+app.post('/api/simulation', async (_req, res) => {
+  const result = await sessionState.runNowcastSimulation();
   res.json({
     ...result,
     meta: {
       timestamp: new Date().toISOString(),
-      disclaimer: 'Deterministic simulated nowcast execution'
+      disclaimer: result.mode === 'REAL_AI_MODEL_INFERENCE' 
+        ? 'Live neural forward pass using VajraNowcastNet (ConvLSTM trained on Kedarnath 2013 data)' 
+        : 'Deterministic simulated nowcast execution'
     }
   });
 });
@@ -181,6 +185,20 @@ app.post('/api/simulation', (_req, res) => {
 app.post('/api/simulation/reset', (_req, res) => {
   const result = sessionState.resetSimulation();
   res.json(result);
+});
+
+// AI Model Microservice Status
+app.get('/api/ai/status', async (_req, res) => {
+  try {
+    const aiRes = await fetch('http://localhost:8000/api/health', { signal: AbortSignal.timeout(1500) });
+    if (aiRes.ok) {
+      const data = await aiRes.json();
+      return res.json({ connected: true, ...data });
+    }
+  } catch (err) {
+    // Offline
+  }
+  res.json({ connected: false, status: 'OFFLINE', message: 'AI microservice on :8000 not reachable' });
 });
 
 // Health check endpoint

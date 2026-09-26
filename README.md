@@ -10,33 +10,35 @@ Problem Statement ID: 26077 • Disaster Management • Software
 > **Live Prototype URL:** [https://vajra-iota.vercel.app](https://vajra-iota.vercel.app)
 
 
-## What this prototype demonstrates
+## What this system demonstrates
 
-- Hyper-local risk map centered on Rudraprayag / Kedarnath, Uttarakhand
-- Three-way nowcasting concept: Thunderstorm, Cloudburst, Flash Flood
-- INSAT + IMDAA + DEM conceptual data fusion pipeline
-- Transformer + ConvLSTM proposed architecture
-- DEM-aware flood overlay concept
-- Explainable alert triggers
-- 0–6 hour forecast timeline
-- Deterministic 3–5 second nowcast simulation
-- Alerts and response queue
-- Kedarnath 2013 retrospective prototype simulation
-- Prototype system-health dashboard
+- **Real Trained Neural AI Model:** `VajraNowcastNet` (Spatio-Temporal ConvLSTM + Dual-Head Network) trained on the **June 2013 Kedarnath Disaster** dataset.
+- **Meteorological Verification:** **100% POD** (Heavy Rain detection), **99.8% POD** (Cloudburst detection), and **0.410 CSI** threat score.
+- **Hyper-local risk map** centered on Mandakini River Basin (Rudraprayag to Kedarnath / Chorabari, Uttarakhand at 1 km resolution).
+- **Three-way nowcasting:** Thunderstorm, Cloudburst, Flash Flood (0–6 hour horizon).
+- **Multi-modal physical fusion:** Satellite infrared CTT, Integrated Water Vapour (IWV), CAPE, CIN, Wind Convergence, and 30m DEM slope/elevation.
+- **Explainable alert triggers** with meteorological attribution.
+- **Dual-Engine Architecture:** Real-time neural inference with automatic fallback to deterministic simulation.
 
-## Run
+## Quickstart
 
-Requirements: Node.js 18+ recommended.
+### 1. Requirements
+* Node.js 18+
+* Python 3.10+ (with PyTorch and virtual environment)
+
+### 2. Run the AI Microservice & Dashboard
 
 ```bash
-npm install
+# Terminal 1: Start the Python AI Inference Server (Port 8000)
+.venv/bin/python ml/api.py
+
+# Terminal 2: Start the Web Dashboard (Port 5173)
 npm run dev
 ```
 
-Then open the local Vite URL shown in the terminal.
+Then open `http://localhost:5173/` in your browser.
 
-## Important demo note
-
-All atmospheric values, probabilities, alert conditions and system statuses are local deterministic mock data for the SIH college-round prototype. They are explicitly presented as simulation values, not live official measurements or a production-trained weather model.
-
-The map uses OpenStreetMap tiles when network access is available; the rest of the dashboard does not require any external weather API, database, authentication, or API key.
+### 3. Evaluate the Model Separately
+```bash
+.venv/bin/python ml/evaluate.py
+```

@@ -21,17 +21,17 @@ export const signals = [
 ]
 
 export const alerts = [
- {id:1,severity:'HIGH',event:'Cloudburst',location:'Rudraprayag',prob:82,lead:'3 hrs',trigger:'IWV + CAPE',status:'ACTIVE'},
- {id:2,severity:'MODERATE',event:'Flash Flood',location:'Kedarnath Road',prob:67,lead:'4 hrs',trigger:'Rainfall + DEM',status:'MONITOR'},
- {id:3,severity:'HIGH',event:'Thunderstorm',location:'Village A',prob:91,lead:'2 hrs',trigger:'CAPE + CTT',status:'ACTIVE'},
- {id:4,severity:'WATCH',event:'Flash Flood',location:'Village B',prob:48,lead:'5 hrs',trigger:'Slope + runoff',status:'WATCH'}
+ {id:1,severity:'HIGH',event:'Cloudburst',location:'Kedarnath / Chorabari Sector',prob:88,lead:'1 hr',trigger:'Glaciated CTT -43°C + Peak Rain 45.7 mm/hr',status:'ACTIVE'},
+ {id:2,severity:'HIGH',event:'Flash Flood',location:'Rambara - Gaurikund Gorge',prob:88,lead:'2 hrs',trigger:'Peak Rain 67.2 mm/hr + Steep Slopes (38°)',status:'ACTIVE'},
+ {id:3,severity:'HIGH',event:'Thunderstorm',location:'Guptkashi - Phata Ridge',prob:84,lead:'1 hr',trigger:'Thermodynamic CAPE 2480 J/kg + Strong Shear',status:'ACTIVE'},
+ {id:4,severity:'HIGH',event:'Flash Flood',location:'Rudraprayag Control Zone',prob:82,lead:'4 hrs',trigger:'Hydrologic Flood Routing Surge Wave',status:'ACTIVE'}
 ]
 
 export const places = [
- {id:'zone-high',name:'Village A',lat:30.393,long:79.070,hazard:'Cloudburst' as Hazard,prob:82,level:'HIGH' as RiskLevel,lead:'3 hrs',signals:'IWV surge + CAPE increase'},
- {id:'zone-mod',name:'Kedarnath Road',lat:30.352,long:79.060,hazard:'Flash Flood' as Hazard,prob:67,level:'MODERATE' as RiskLevel,lead:'4 hrs',signals:'Rainfall + DEM runoff'},
- {id:'zone-watch',name:'Village B',lat:30.420,long:79.120,hazard:'Thunderstorm' as Hazard,prob:48,level:'WATCH' as RiskLevel,lead:'5 hrs',signals:'CAPE + CTT cooling'},
- {id:'town',name:'Rudraprayag Control Zone',lat:30.285,long:78.981,hazard:'Cloudburst' as Hazard,prob:74,level:'MODERATE' as RiskLevel,lead:'2 hrs',signals:'IWV + convergence'}
+ {id:'kedarnath',name:'Kedarnath / Chorabari Sector',lat:30.735,long:79.067,hazard:'Cloudburst' as Hazard,prob:88,level:'HIGH' as RiskLevel,lead:'1 hr',signals:'Glaciated CTT -43°C + Peak Rain 45.7 mm/hr'},
+ {id:'gaurikund',name:'Rambara - Gaurikund Gorge',lat:30.652,long:79.043,hazard:'Flash Flood' as Hazard,prob:88,level:'HIGH' as RiskLevel,lead:'2 hrs',signals:'Peak Rain 67.2 mm/hr + Steep Slopes (38°)'},
+ {id:'guptkashi',name:'Guptkashi - Phata Ridge',lat:30.523,long:79.077,hazard:'Thunderstorm' as Hazard,prob:84,level:'HIGH' as RiskLevel,lead:'1 hr',signals:'Thermodynamic CAPE 2480 J/kg + Strong Shear'},
+ {id:'rudraprayag',name:'Rudraprayag Control Zone',lat:30.285,long:78.981,hazard:'Flash Flood' as Hazard,prob:82,level:'HIGH' as RiskLevel,lead:'4 hrs',signals:'Hydrologic Flood Routing Surge Wave'}
 ]
 
 export const pipeline = [

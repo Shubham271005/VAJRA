@@ -79,15 +79,17 @@ export class SessionStateManager {
     
     // Slight localized elevation/microclimate adjustment for realism based on selected location
     let elevationFactor = 1.0;
-    if (loc.id === 'village-a') elevationFactor = 1.05; // ridge orographic lift
-    if (loc.id === 'village-b') elevationFactor = 0.94; // higher altitude cooler
-    if (loc.id === 'kedarnath-road') elevationFactor = 1.02;
+    if (loc.id === 'kedarnath') elevationFactor = 1.15;
+    if (loc.id === 'gaurikund') elevationFactor = 1.08;
+    if (loc.id === 'guptkashi') elevationFactor = 1.02;
+    if (loc.id === 'rudraprayag') elevationFactor = 0.92;
 
     return scenario.signals.map(s => {
       let val = s.value;
       if (s.key === 'IWV') val = +(val * elevationFactor).toFixed(1);
       if (s.key === 'CAPE') val = Math.round(val * elevationFactor);
-      if (s.key === 'CTT' && loc.id === 'village-a') val = val - 2;
+      if (s.key === 'CTT' && loc.id === 'kedarnath') val = val - 6;
+      if (s.key === 'CTT' && loc.id === 'gaurikund') val = val - 3;
       return {
         ...s,
         value: val

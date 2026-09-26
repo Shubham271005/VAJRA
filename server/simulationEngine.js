@@ -22,34 +22,47 @@ const SCENARIOS = [
       { key: 'CTT', name: 'Cloud Top Temperature', value: -52, unit: '°C', trend: '-8°C', status: 'COOLING', series: [-37, -39, -41, -43, -46, -49, -52] }
     ],
     places: [
-      { id: 'zone-high', name: 'Village A (Ridge)', lat: 30.393, long: 79.070, hazard: 'Cloudburst', prob: 82, level: 'HIGH', lead: '3 hrs', signals: 'IWV surge + CAPE increase' },
-      { id: 'zone-mod', name: 'Kedarnath Road', lat: 30.352, long: 79.060, hazard: 'Flash Flood', prob: 67, level: 'MODERATE', lead: '4 hrs', signals: 'Rainfall + DEM runoff' },
-      { id: 'zone-watch', name: 'Village B', lat: 30.420, long: 79.120, hazard: 'Thunderstorm', prob: 48, level: 'WATCH', lead: '5 hrs', signals: 'CAPE + CTT cooling' },
-      { id: 'town', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Cloudburst', prob: 74, level: 'MODERATE', lead: '2 hrs', signals: 'IWV + convergence' }
+      { id: 'kedarnath', name: 'Kedarnath / Chorabari Sector', lat: 30.735, long: 79.067, hazard: 'Cloudburst', prob: 88, level: 'HIGH', lead: '1 hr', signals: 'Glaciated CTT -43°C + Peak Rain 45.7 mm/hr' },
+      { id: 'gaurikund', name: 'Rambara - Gaurikund Gorge', lat: 30.652, long: 79.043, hazard: 'Flash Flood', prob: 88, level: 'HIGH', lead: '2 hrs', signals: 'Peak Rain 67.2 mm/hr + Steep Slopes (38°)' },
+      { id: 'guptkashi', name: 'Guptkashi - Phata Ridge', lat: 30.523, long: 79.077, hazard: 'Thunderstorm', prob: 84, level: 'HIGH', lead: '1 hr', signals: 'Thermodynamic CAPE 2480 J/kg + Strong Shear' },
+      { id: 'rudraprayag', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Flash Flood', prob: 82, level: 'HIGH', lead: '4 hrs', signals: 'Hydrologic Flood Routing Surge Wave' }
     ],
     centers: [
-      { lat: 30.393, long: 79.07, r: 0.045, level: 'HIGH', hazard: 'Cloudburst' },
-      { lat: 30.352, long: 79.06, r: 0.035, level: 'MODERATE', hazard: 'Flash Flood' },
-      { lat: 30.42, long: 79.12, r: 0.032, level: 'WATCH', hazard: 'Thunderstorm' },
-      { lat: 30.285, long: 78.981, r: 0.025, level: 'MODERATE', hazard: 'Cloudburst' }
+      { lat: 30.735, long: 79.067, r: 0.045, level: 'HIGH', hazard: 'Cloudburst' },
+      { lat: 30.652, long: 79.043, r: 0.040, level: 'HIGH', hazard: 'Flash Flood' },
+      { lat: 30.523, long: 79.077, r: 0.035, level: 'HIGH', hazard: 'Thunderstorm' },
+      { lat: 30.285, long: 78.981, r: 0.030, level: 'HIGH', hazard: 'Flash Flood' }
     ],
     alerts: [
-      { id: 1, severity: 'HIGH', event: 'Cloudburst', location: 'Rudraprayag District', prob: 82, lead: '3 hrs', trigger: 'IWV + CAPE', status: 'ACTIVE', actionRecommended: 'Pre-position SDRF search teams and notify downstream outposts' },
-      { id: 2, severity: 'MODERATE', event: 'Flash Flood', location: 'Kedarnath Road Corridor', prob: 67, lead: '4 hrs', trigger: 'Rainfall + DEM runoff', status: 'MONITOR', actionRecommended: 'Halt vehicular traffic across vulnerable culverts' },
-      { id: 3, severity: 'HIGH', event: 'Thunderstorm', location: 'Village A Ridge Sector', prob: 91, lead: '2 hrs', trigger: 'CAPE + CTT', status: 'ACTIVE', actionRecommended: 'Broadcast lightning safety sirens across panchayat units' },
-      { id: 4, severity: 'WATCH', event: 'Flash Flood', location: 'Village B Catchment', prob: 48, lead: '5 hrs', trigger: 'Slope + runoff', status: 'WATCH', actionRecommended: 'Monitor automatic river-level sensors along Mandakini feeder' }
+      { id: 1, severity: 'HIGH', event: 'Cloudburst', location: 'Kedarnath / Chorabari Sector', prob: 88, lead: '1 hr', trigger: 'Glaciated CTT -43°C + Peak Rain 45.7 mm/hr', status: 'ACTIVE', actionRecommended: 'IMMEDIATE EVACUATION: Move pilgrims above Mandakini flood plain to high ground behind shrine sanctuary' },
+      { id: 2, severity: 'HIGH', event: 'Flash Flood', location: 'Rambara - Gaurikund Gorge', prob: 88, lead: '2 hrs', trigger: 'Peak Rain 67.2 mm/hr + Steep Slopes (38°)', status: 'ACTIVE', actionRecommended: 'HALT ALL TRANSIT: Close Gaurikund-Kedarnath trek corridor and clear Rambara bridge settlements' },
+      { id: 3, severity: 'HIGH', event: 'Thunderstorm', location: 'Guptkashi - Phata Ridge', prob: 84, lead: '1 hr', trigger: 'CAPE 2480 J/kg + High Shear', status: 'ACTIVE', actionRecommended: 'GROUND HELICOPTER FLIGHTS: Ground shuttle operations and secure hilltop communication arrays' },
+      { id: 4, severity: 'HIGH', event: 'Flash Flood', location: 'Rudraprayag Control Zone', prob: 82, lead: '4 hrs', trigger: 'Hydrologic Flood Routing Surge Wave', status: 'ACTIVE', actionRecommended: 'RIVERFRONT CLEARANCE: Clear Alaknanda-Mandakini confluence ghats and alert downstream barrages' }
     ],
     explainability: {
       summary: 'Deep convective cell approaching Rudraprayag district with severe moisture pooling and rapid cloud top glaciation.',
+      xaiMethod: 'Gradient × Input (Integrated Saliency Attribution)',
+      modelName: 'VajraNowcastNet (ConvLSTM + Dual-Head)',
+      checkpointEpoch: 7,
+      xaiAttributions: [
+        { key: 'VWS', name: 'Vertical Wind Shear (0–6 km)', category: 'Kinematic Shear', value: '34.7 m/s', score: 38.4, mechanism: 'Strong vertical shear tilts convective updrafts, preventing premature collapse and organizing storm cells.', impact: 'CRITICAL DRIVER', impactColor: '#ef4444' },
+        { key: 'DEM_ELEV', name: 'Orographic Elevation Barrier', category: 'Topography / DEM', value: '3096 m', score: 12.7, mechanism: 'Massive 3,900m Kedarnath massifs force mechanical uplift of incoming monsoon air.', impact: 'STRONG DRIVER', impactColor: '#f97316' },
+        { key: 'WCONV', name: 'Low-Level Wind Convergence', category: 'Kinematic Forcing', value: '7.6 × 10⁻⁴ s⁻¹', score: 12.4, mechanism: 'Orographic wind convergence channelling air masses rapidly up the Mandakini gorge.', impact: 'STRONG DRIVER', impactColor: '#f97316' },
+        { key: 'CAPE', name: 'Convective Instability (CAPE)', category: 'Thermodynamics', value: '1445 J/kg', score: 10.0, mechanism: 'Intense atmospheric convective potential energy fueling explosive cloud vertical growth.', impact: 'MODERATE CONTRIBUTOR', impactColor: '#0284c7' },
+        { key: 'IWV', name: 'Integrated Water Vapour (IWV)', category: 'Moisture Pooling', value: '49.9 kg/m²', score: 9.7, mechanism: 'Precipitable moisture pool trapped between enclosing Himalayan ridges.', impact: 'MODERATE CONTRIBUTOR', impactColor: '#0284c7' },
+        { key: 'CIN', name: 'Convective Inhibition (CIN)', category: 'Thermodynamics', value: '61 J/kg', score: 8.1, mechanism: 'Weakening inversion cap allows trapped moisture to erupt into convective cloudburst.', impact: 'MODERATE CONTRIBUTOR', impactColor: '#0284c7' },
+        { key: 'CTT', name: 'Cloud Top Glaciation (TIR CTT)', category: 'Satellite Infrared', value: '-42.9 °C', score: 6.8, mechanism: 'Rapid cooling below -50°C indicates towering cumulonimbus clouds with intense glaciation.', impact: 'SECONDARY', impactColor: '#64748b' },
+        { key: 'DEM_SLOPE', name: 'Terrain Slope Gradient', category: 'Topography / DEM', value: '6.8°', score: 1.9, mechanism: 'Steep 30m mountain flanks accelerate surface runoff directly toward the river bed.', impact: 'SECONDARY', impactColor: '#64748b' }
+      ],
       rows: [
-        ['IWV surge detected', '+34% over recent observation window', 'Strong contribution'],
-        ['CAPE increasing', 'Convective instability rising above 2,100 J/kg', 'Strong contribution'],
-        ['CIN weakening', 'Convective inhibition eroded to 34 J/kg', 'Moderate contribution'],
-        ['Low-level wind convergence', 'Orographic forcing along Mandakini valley', 'Moderate contribution'],
-        ['Cloud Top Temperature', 'Rapid cloud development signal (dropped to -52°C)', 'Strong contribution']
+        ['Vertical Wind Shear (0–6 km)', 'Val: 34.7 m/s • Contrib: 38.4%', 'CRITICAL DRIVER'],
+        ['Orographic Elevation Barrier', 'Val: 3096 m • Contrib: 12.7%', 'STRONG DRIVER'],
+        ['Low-Level Wind Convergence', 'Val: 7.6 × 10⁻⁴ s⁻¹ • Contrib: 12.4%', 'STRONG DRIVER'],
+        ['Convective Instability (CAPE)', 'Val: 1445 J/kg • Contrib: 10.0%', 'MODERATE CONTRIBUTOR'],
+        ['Integrated Water Vapour (IWV)', 'Val: 49.9 kg/m² • Contrib: 9.7%', 'MODERATE CONTRIBUTOR']
       ],
       overallConfidence: 'HIGH',
-      confidenceScore: 88,
+      confidenceScore: 92,
       hazardSplit: {
         cloudburst: 'HIGH (82%)',
         flood: 'MODERATE-HIGH (67%)',
@@ -79,34 +92,45 @@ const SCENARIOS = [
       { key: 'CTT', name: 'Cloud Top Temperature', value: -64, unit: '°C', trend: '-16°C', status: 'COOLING', series: [-42, -46, -50, -54, -58, -61, -64] }
     ],
     places: [
-      { id: 'zone-high', name: 'Village A (Ridge)', lat: 30.393, long: 79.070, hazard: 'Cloudburst', prob: 93, level: 'HIGH', lead: '1 hr', signals: 'Severe CTT cooling (-64°C) + IWV 47.4' },
-      { id: 'zone-mod', name: 'Kedarnath Road', lat: 30.352, long: 79.060, hazard: 'Flash Flood', prob: 85, level: 'HIGH', lead: '2 hrs', signals: 'Steep slope convergence + intense rainfall' },
-      { id: 'zone-watch', name: 'Village B', lat: 30.420, long: 79.120, hazard: 'Thunderstorm', prob: 79, level: 'HIGH', lead: '1 hr', signals: 'High CAPE + extreme lightning signature' },
-      { id: 'town', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Cloudburst', prob: 84, level: 'HIGH', lead: '2 hrs', signals: 'Moisture pooling + downstream runoff' }
+      { id: 'kedarnath', name: 'Kedarnath / Chorabari Sector', lat: 30.735, long: 79.067, hazard: 'Cloudburst', prob: 96, level: 'HIGH', lead: '30 mins', signals: 'Severe CTT cooling (-64°C) + IWV 47.4' },
+      { id: 'gaurikund', name: 'Rambara - Gaurikund Gorge', lat: 30.652, long: 79.043, hazard: 'Flash Flood', prob: 92, level: 'HIGH', lead: '1 hr', signals: 'Steep slope convergence + extreme rainfall' },
+      { id: 'guptkashi', name: 'Guptkashi - Phata Ridge', lat: 30.523, long: 79.077, hazard: 'Thunderstorm', prob: 88, level: 'HIGH', lead: '1 hr', signals: 'High CAPE + extreme lightning signature' },
+      { id: 'rudraprayag', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Flash Flood', prob: 84, level: 'HIGH', lead: '3 hrs', signals: 'Moisture pooling + downstream flood surge' }
     ],
     centers: [
-      { lat: 30.393, long: 79.07, r: 0.058, level: 'HIGH', hazard: 'Cloudburst' },
-      { lat: 30.352, long: 79.06, r: 0.048, level: 'HIGH', hazard: 'Flash Flood' },
-      { lat: 30.42, long: 79.12, r: 0.042, level: 'HIGH', hazard: 'Thunderstorm' },
-      { lat: 30.285, long: 78.981, r: 0.038, level: 'HIGH', hazard: 'Cloudburst' }
+      { lat: 30.735, long: 79.067, r: 0.058, level: 'HIGH', hazard: 'Cloudburst' },
+      { lat: 30.652, long: 79.043, r: 0.048, level: 'HIGH', hazard: 'Flash Flood' },
+      { lat: 30.523, long: 79.077, r: 0.042, level: 'HIGH', hazard: 'Thunderstorm' },
+      { lat: 30.285, long: 78.981, r: 0.038, level: 'HIGH', hazard: 'Flash Flood' }
     ],
     alerts: [
-      { id: 1, severity: 'HIGH', event: 'Cloudburst', location: 'Village A Ridge Sector', prob: 93, lead: '1 hr', trigger: 'Extreme CTT + IWV Surge', status: 'ACTIVE', actionRecommended: 'Issue immediate red alert and trigger village evacuation protocol' },
-      { id: 2, severity: 'HIGH', event: 'Flash Flood', location: 'Kedarnath Road Corridor', prob: 85, lead: '2 hrs', trigger: 'Saturated Soil + DEM Runoff', status: 'ACTIVE', actionRecommended: 'Immediately close Mandakini riverside pilgrim camps' },
-      { id: 3, severity: 'HIGH', event: 'Thunderstorm', location: 'Village B Catchment', prob: 79, lead: '1 hr', trigger: 'CAPE 2480 J/kg + Strong Shear', status: 'ACTIVE', actionRecommended: 'Warn power transmission grids and high-altitude shelters' },
-      { id: 4, severity: 'HIGH', event: 'Flash Flood', location: 'Rudraprayag Confluence', prob: 78, lead: '3 hrs', trigger: 'Hydro-routed upstream surge', status: 'ACTIVE', actionRecommended: 'Clear riverside ghats and low-lying market stalls' }
+      { id: 1, severity: 'HIGH', event: 'Cloudburst', location: 'Kedarnath / Chorabari Sector', prob: 96, lead: '30 mins', trigger: 'Extreme CTT + IWV Surge', status: 'ACTIVE', actionRecommended: 'Issue immediate red alert and trigger shrine evacuation protocol' },
+      { id: 2, severity: 'HIGH', event: 'Flash Flood', location: 'Rambara - Gaurikund Gorge', prob: 92, lead: '1 hr', trigger: 'Saturated Soil + Torrential Runoff', status: 'ACTIVE', actionRecommended: 'Immediately close Mandakini riverside pilgrim camps' },
+      { id: 3, severity: 'HIGH', event: 'Thunderstorm', location: 'Guptkashi - Phata Ridge', prob: 88, lead: '1 hr', trigger: 'CAPE 2480 J/kg + Strong Shear', status: 'ACTIVE', actionRecommended: 'Warn power transmission grids and high-altitude shelters' },
+      { id: 4, severity: 'HIGH', event: 'Flash Flood', location: 'Rudraprayag Control Zone', prob: 84, lead: '3 hrs', trigger: 'Hydro-routed upstream surge', status: 'ACTIVE', actionRecommended: 'Clear riverside ghats and low-lying market stalls' }
     ],
     explainability: {
       summary: 'Atmospheric instability reached peak threshold. Severe convective cell locked into Mandakini valley orographic chimney.',
+      xaiMethod: 'Gradient × Input (Integrated Saliency Attribution)',
+      modelName: 'VajraNowcastNet (ConvLSTM + Dual-Head)',
+      checkpointEpoch: 7,
+      xaiAttributions: [
+        { key: 'CTT', name: 'Cloud Top Glaciation (TIR CTT)', category: 'Satellite Infrared', value: '-64.0 °C', score: 32.5, mechanism: 'Extreme overshooting cloud tops colder than -60°C signal catastrophic convective updraft vigor.', impact: 'CRITICAL DRIVER', impactColor: '#ef4444' },
+        { key: 'WCONV', name: 'Low-Level Wind Convergence', category: 'Kinematic Forcing', value: '11.4 × 10⁻⁴ s⁻¹', score: 24.8, mechanism: 'Extreme orographic wind funneling slamming saturated monsoon air into ridge faces.', impact: 'CRITICAL DRIVER', impactColor: '#ef4444' },
+        { key: 'CAPE', name: 'Convective Instability (CAPE)', category: 'Thermodynamics', value: '2480 J/kg', score: 18.2, mechanism: 'Extreme thermodynamic buoyancy driving rapid vertical mass transport into freezing levels.', impact: 'CRITICAL DRIVER', impactColor: '#ef4444' },
+        { key: 'IWV', name: 'Integrated Water Vapour (IWV)', category: 'Moisture Pooling', value: '47.4 kg/m²', score: 11.4, mechanism: 'Saturated atmospheric column delivering continuous high moisture feeding rates.', impact: 'STRONG DRIVER', impactColor: '#f97316' },
+        { key: 'DEM_SLOPE', name: 'Terrain Slope Gradient', category: 'Topography / DEM', value: '38.5°', score: 8.5, mechanism: 'Precipitous mountain walls instantly transition aerial rainfall into devastating flash floods.', impact: 'MODERATE CONTRIBUTOR', impactColor: '#0284c7' },
+        { key: 'VWS', name: 'Vertical Wind Shear (0–6 km)', category: 'Kinematic Shear', value: '22.8 m/s', score: 4.6, mechanism: 'Organizes storm multicellular supercell rotation without shearing cloud tops apart.', impact: 'SECONDARY', impactColor: '#64748b' }
+      ],
       rows: [
-        ['Extreme CTT glaciation', 'Overshooting tops detected at -64°C by INSAT TIR1', 'Strong contribution'],
-        ['Moisture convergence maximum', 'Low-level convergence spiked to 11.4 x 10⁻⁴ s⁻¹', 'Strong contribution'],
-        ['CAPE super-instability', 'CAPE exceeds 2,400 J/kg with complete CIN erosion', 'Strong contribution'],
-        ['Steep DEM runoff amplification', 'SRTM slope > 35° accelerates flash flood transition', 'Strong contribution'],
-        ['VWS maintenance', 'Shear maintains organized multicellular storm structure', 'Moderate contribution']
+        ['Extreme CTT glaciation', 'Overshooting tops detected at -64°C by INSAT TIR1', 'CRITICAL DRIVER'],
+        ['Moisture convergence maximum', 'Low-level convergence spiked to 11.4 x 10⁻⁴ s⁻¹', 'CRITICAL DRIVER'],
+        ['CAPE super-instability', 'CAPE exceeds 2,400 J/kg with complete CIN erosion', 'CRITICAL DRIVER'],
+        ['Steep DEM runoff amplification', 'SRTM slope > 35° accelerates flash flood transition', 'STRONG DRIVER'],
+        ['VWS maintenance', 'Shear maintains organized multicellular storm structure', 'MODERATE CONTRIBUTOR']
       ],
       overallConfidence: 'VERY HIGH',
-      confidenceScore: 94,
+      confidenceScore: 96,
       hazardSplit: {
         cloudburst: 'CRITICAL (93%)',
         flood: 'HIGH (85%)',
@@ -136,31 +160,42 @@ const SCENARIOS = [
       { key: 'CTT', name: 'Cloud Top Temperature', value: -41, unit: '°C', trend: '+14°C', status: 'WARMING', series: [-62, -58, -53, -49, -46, -43, -41] }
     ],
     places: [
-      { id: 'zone-high', name: 'Village A (Ridge)', lat: 30.393, long: 79.070, hazard: 'Flash Flood', prob: 74, level: 'MODERATE', lead: '1 hr', signals: 'Runoff draining to valley' },
-      { id: 'zone-mod', name: 'Kedarnath Road', lat: 30.352, long: 79.060, hazard: 'Flash Flood', prob: 91, level: 'HIGH', lead: '1 hr', signals: 'Peak river channel swelling + debris hazard' },
-      { id: 'zone-watch', name: 'Village B', lat: 30.420, long: 79.120, hazard: 'Cloudburst', prob: 42, level: 'WATCH', lead: '3 hrs', signals: 'Cell decaying, stratiform rain' },
-      { id: 'town', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Flash Flood', prob: 88, level: 'HIGH', lead: '2 hrs', signals: 'Mandakini surge reaching confluence' }
+      { id: 'kedarnath', name: 'Kedarnath / Chorabari Sector', lat: 30.735, long: 79.067, hazard: 'Flash Flood', prob: 78, level: 'MODERATE', lead: '1 hr', signals: 'Glacial runoff draining to gorge' },
+      { id: 'gaurikund', name: 'Rambara - Gaurikund Gorge', lat: 30.652, long: 79.043, hazard: 'Flash Flood', prob: 94, level: 'HIGH', lead: '1 hr', signals: 'Peak river channel swelling + debris flow' },
+      { id: 'guptkashi', name: 'Guptkashi - Phata Ridge', lat: 30.523, long: 79.077, hazard: 'Thunderstorm', prob: 46, level: 'WATCH', lead: '2 hrs', signals: 'Cell decaying, stratiform rain' },
+      { id: 'rudraprayag', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Flash Flood', prob: 90, level: 'HIGH', lead: '2 hrs', signals: 'Mandakini surge reaching confluence' }
     ],
     centers: [
-      { lat: 30.352, long: 79.06, r: 0.060, level: 'HIGH', hazard: 'Flash Flood' },
+      { lat: 30.652, long: 79.043, r: 0.060, level: 'HIGH', hazard: 'Flash Flood' },
       { lat: 30.285, long: 78.981, r: 0.052, level: 'HIGH', hazard: 'Flash Flood' },
-      { lat: 30.393, long: 79.07, r: 0.038, level: 'MODERATE', hazard: 'Cloudburst' },
-      { lat: 30.42, long: 79.12, r: 0.024, level: 'WATCH', hazard: 'Thunderstorm' }
+      { lat: 30.735, long: 79.067, r: 0.038, level: 'MODERATE', hazard: 'Cloudburst' },
+      { lat: 30.523, long: 79.077, r: 0.024, level: 'WATCH', hazard: 'Thunderstorm' }
     ],
     alerts: [
-      { id: 2, severity: 'HIGH', event: 'Flash Flood', location: 'Kedarnath Road Corridor', prob: 91, lead: '1 hr', trigger: 'Channel Swell + Debris Flow', status: 'ACTIVE', actionRecommended: 'Maintain total vehicular closure and initiate bank reinforcements' },
-      { id: 4, severity: 'HIGH', event: 'Flash Flood', location: 'Rudraprayag Confluence', prob: 88, lead: '2 hrs', trigger: 'Hydro-routed upstream surge', status: 'ACTIVE', actionRecommended: 'Sound siren at confluence ghats and enforce riverfront buffer zone' },
-      { id: 1, severity: 'MODERATE', event: 'Cloudburst', location: 'Village A Ridge Sector', prob: 51, lead: '2 hrs', trigger: 'Stratiform transition', status: 'MONITOR', actionRecommended: 'Assess ridge slope stabilization and cleared drainage paths' },
-      { id: 3, severity: 'WATCH', event: 'Thunderstorm', location: 'Village B Catchment', prob: 38, lead: '3 hrs', trigger: 'Dissipating storm cell', status: 'WATCH', actionRecommended: 'Resume normal vigilance standby' }
+      { id: 2, severity: 'HIGH', event: 'Flash Flood', location: 'Rambara - Gaurikund Gorge', prob: 94, lead: '1 hr', trigger: 'Channel Swell + Debris Flow', status: 'ACTIVE', actionRecommended: 'Maintain total vehicular closure and initiate bank reinforcements' },
+      { id: 4, severity: 'HIGH', event: 'Flash Flood', location: 'Rudraprayag Control Zone', prob: 90, lead: '2 hrs', trigger: 'Hydro-routed upstream surge', status: 'ACTIVE', actionRecommended: 'Sound siren at confluence ghats and enforce riverfront buffer zone' },
+      { id: 1, severity: 'MODERATE', event: 'Cloudburst', location: 'Kedarnath / Chorabari Sector', prob: 51, lead: '2 hrs', trigger: 'Stratiform transition', status: 'MONITOR', actionRecommended: 'Assess ridge slope stabilization and cleared drainage paths' },
+      { id: 3, severity: 'WATCH', event: 'Thunderstorm', location: 'Guptkashi - Phata Ridge', prob: 38, lead: '3 hrs', trigger: 'Dissipating storm cell', status: 'WATCH', actionRecommended: 'Resume normal vigilance standby' }
     ],
     explainability: {
       summary: 'Atmospheric convective engine is relaxing as instability is exhausted. Threat shifts heavily to DEM-directed hydrological flood routing.',
+      xaiMethod: 'Gradient × Input (Integrated Saliency Attribution)',
+      modelName: 'VajraNowcastNet (ConvLSTM + Dual-Head)',
+      checkpointEpoch: 7,
+      xaiAttributions: [
+        { key: 'DEM_SLOPE', name: 'Terrain Slope Gradient', category: 'Topography / DEM', value: '42.1°', score: 36.8, mechanism: 'Steep 30m mountain flanks accelerate surface runoff directly toward the river bed.', impact: 'CRITICAL DRIVER', impactColor: '#ef4444' },
+        { key: 'DEM_ELEV', name: 'Orographic Elevation Barrier', category: 'Topography / DEM', value: '2840 m', score: 26.2, mechanism: 'Valley depression funnels high altitude runoff into narrow gorges creating hydraulic surge head.', impact: 'CRITICAL DRIVER', impactColor: '#ef4444' },
+        { key: 'IWV', name: 'Integrated Water Vapour (IWV)', category: 'Moisture Pooling', value: '39.2 kg/m²', score: 14.5, mechanism: 'Residual precipitable moisture continues delivering heavy stratiform rainfall.', impact: 'STRONG DRIVER', impactColor: '#f97316' },
+        { key: 'CIN', name: 'Convective Inhibition (CIN)', category: 'Thermodynamics', value: '62 J/kg', score: 12.0, mechanism: 'Rebuilding convective cap stabilizes atmosphere against secondary cloudburst eruptions.', impact: 'STRONG DRIVER', impactColor: '#f97316' },
+        { key: 'CTT', name: 'Cloud Top Glaciation (TIR CTT)', category: 'Satellite Infrared', value: '-41.0 °C', score: 6.5, mechanism: 'Warming cloud tops indicate dissipating convective anvil structure.', impact: 'SECONDARY', impactColor: '#64748b' },
+        { key: 'WCONV', name: 'Low-Level Wind Convergence', category: 'Kinematic Forcing', value: '5.2 × 10⁻⁴ s⁻¹', score: 4.0, mechanism: 'Decaying valley convergence wind field.', impact: 'SECONDARY', impactColor: '#64748b' }
+      ],
       rows: [
-        ['Hydrological lag in effect', 'Precipitation volume routing through Mandakini riverbed', 'Strong contribution'],
-        ['DEM slope flow accumulation', 'Steep topography (SRTM 30m) channels mountain runoff downstream', 'Strong contribution'],
-        ['Atmospheric CIN rebuilding', 'Convective inhibition rose to 62 J/kg, suppressing new cells', 'Moderate contribution'],
-        ['Cloud Top Warming', 'CTT warmed to -41°C, indicating anvil dissipation', 'Moderate contribution'],
-        ['Soil moisture saturation', 'Antecedent moisture index remains at 94%, preventing absorption', 'Strong contribution']
+        ['Hydrological lag in effect', 'Precipitation volume routing through Mandakini riverbed', 'CRITICAL DRIVER'],
+        ['DEM slope flow accumulation', 'Steep topography (SRTM 30m) channels mountain runoff downstream', 'CRITICAL DRIVER'],
+        ['Atmospheric CIN rebuilding', 'Convective inhibition rose to 62 J/kg, suppressing new cells', 'STRONG DRIVER'],
+        ['Cloud Top Warming', 'CTT warmed to -41°C, indicating anvil dissipation', 'MODERATE CONTRIBUTOR'],
+        ['Soil moisture saturation', 'Antecedent moisture index remains at 94%, preventing absorption', 'STRONG DRIVER']
       ],
       overallConfidence: 'HIGH',
       confidenceScore: 91,
@@ -175,6 +210,36 @@ const SCENARIOS = [
 
 export const DISTRICT_LOCATIONS = [
   {
+    id: 'kedarnath',
+    name: 'Kedarnath / Chorabari Sector',
+    district: 'Rudraprayag',
+    lat: 30.735,
+    long: 79.067,
+    elevation: '3,584 m',
+    type: 'Glacial Catchment & Shrine Sanctuary',
+    description: 'Upper Mandakini headwaters & Chorabari moraine lake; primary ground-zero cloudburst trigger zone.'
+  },
+  {
+    id: 'gaurikund',
+    name: 'Rambara - Gaurikund Gorge',
+    district: 'Rudraprayag',
+    lat: 30.652,
+    long: 79.043,
+    elevation: '1,980 m',
+    type: 'Steep Gorge Transit Corridor',
+    description: 'Narrow mountain gorge with severe hydraulic channelling, tributary confluence & debris torrent vulnerability.'
+  },
+  {
+    id: 'guptkashi',
+    name: 'Guptkashi - Phata Ridge',
+    district: 'Rudraprayag',
+    lat: 30.523,
+    long: 79.077,
+    elevation: '1,319 m',
+    type: 'Orographic Crest & Helipad Outpost',
+    description: 'Mid-valley ridge sector subjected to intense thermodynamic CAPE buoyancy, lightning & cross-valley wind shear.'
+  },
+  {
     id: 'rudraprayag',
     name: 'Rudraprayag Control Zone',
     district: 'Rudraprayag',
@@ -182,37 +247,7 @@ export const DISTRICT_LOCATIONS = [
     long: 78.981,
     elevation: '890 m',
     type: 'District EOC & Confluence',
-    description: 'Confluence of Alaknanda & Mandakini rivers; critical downstream monitoring node.'
-  },
-  {
-    id: 'kedarnath-road',
-    name: 'Kedarnath Road Corridor',
-    district: 'Rudraprayag',
-    lat: 30.352,
-    long: 79.060,
-    elevation: '1,980 m',
-    type: 'Steep Gorge Transit Corridor',
-    description: 'High-risk steep valley terrain prone to sudden debris flows and tributary surges.'
-  },
-  {
-    id: 'village-a',
-    name: 'Village A (Ridge Sector)',
-    district: 'Rudraprayag',
-    lat: 30.393,
-    long: 79.070,
-    elevation: '2,240 m',
-    type: 'Orographic Crest & Settlement',
-    description: 'High-altitude ridge with strong orographic updraft trigger for cloudburst cells.'
-  },
-  {
-    id: 'village-b',
-    name: 'Village B (Upper Catchment)',
-    district: 'Rudraprayag',
-    lat: 30.420,
-    long: 79.120,
-    elevation: '2,650 m',
-    type: 'Alpine Upper Catchment',
-    description: 'Catchment headwaters with direct snow/rain drainage into the Mandakini river system.'
+    description: 'Confluence of Alaknanda & Mandakini rivers; critical downstream evacuation node and hydro-surge terminus.'
   }
 ];
 
