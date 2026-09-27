@@ -54,16 +54,32 @@ export class SessionStateManager {
     }));
   }
 
+  resolveLocationData(id) {
+    if (!this.latestAiInference?.locations) return null;
+    const locMap = this.latestAiInference.locations;
+    if (locMap[id]) return locMap[id];
+    const cleanId = (id || '').toLowerCase().replace(/_(city|town|sector|basin|range|gorge|plain)$/, '');
+    for (const [k, v] of Object.entries(locMap)) {
+      const cleanK = k.toLowerCase().replace(/_(city|town|sector|basin|range|gorge|plain)$/, '');
+      if (cleanK === cleanId || k.includes(cleanId) || cleanId.includes(cleanK) || v.location?.name?.toLowerCase().includes(cleanId)) {
+        return v;
+      }
+    }
+    return null;
+  }
+
   getActiveLocation() {
-    if (this.latestAiInference?.locations?.[this.activeLocationId]) {
-      return this.latestAiInference.locations[this.activeLocationId].location;
+    const locData = this.resolveLocationData(this.activeLocationId);
+    if (locData?.location) {
+      return locData.location;
     }
     return DISTRICT_LOCATIONS.find(l => l.id === this.activeLocationId) || DISTRICT_LOCATIONS[0];
   }
 
   setActiveLocation(id) {
-    if (this.latestAiInference?.locations?.[id]) {
-      this.activeLocationId = id;
+    const locData = this.resolveLocationData(id);
+    if (locData?.location?.id) {
+      this.activeLocationId = locData.location.id;
       return this.getActiveLocation();
     }
     const found = DISTRICT_LOCATIONS.find(l => l.id === id);
@@ -122,8 +138,9 @@ export class SessionStateManager {
   }
 
   getForecast() {
-    if (this.latestAiInference?.locations?.[this.activeLocationId]?.forecast) {
-      return this.latestAiInference.locations[this.activeLocationId].forecast;
+    const locData = this.resolveLocationData(this.activeLocationId);
+    if (locData?.forecast) {
+      return locData.forecast;
     }
     if (this.latestAiInference?.forecast) {
       return this.latestAiInference.forecast;
@@ -133,8 +150,9 @@ export class SessionStateManager {
   }
 
   getSignals() {
-    if (this.latestAiInference?.locations?.[this.activeLocationId]?.signals) {
-      return this.latestAiInference.locations[this.activeLocationId].signals;
+    const locData = this.resolveLocationData(this.activeLocationId);
+    if (locData?.signals) {
+      return locData.signals;
     }
     if (this.latestAiInference?.signals) {
       return this.latestAiInference.signals;
@@ -142,18 +160,15 @@ export class SessionStateManager {
     const scenario = this.engine.getCurrentScenario();
     const loc = this.getActiveLocation();
     
-    let elevationFactor = 1.0;
-    if (loc.id === 'kedarnath') elevationFactor = 1.15;
-    if (loc.id === 'gaurikund') elevationFactor = 1.08;
-    if (loc.id === 'guptkashi') elevationFactor = 1.02;
-    if (loc.id === 'rudraprayag') elevationFactor = 0.92;
+    // Physical elevation scaling fallback
+    const elev = parseFloat((loc.elevation || '1000').replace(/[^0-9.]/g, '')) || 1000;
+    const factor = Math.max(0.65, Math.min(1.4, elev / 2500));
 
     return scenario.signals.map(s => {
       let val = s.value;
-      if (s.key === 'IWV') val = +(val * elevationFactor).toFixed(1);
-      if (s.key === 'CAPE') val = Math.round(val * elevationFactor);
-      if (s.key === 'CTT' && loc.id === 'kedarnath') val = val - 6;
-      if (s.key === 'CTT' && loc.id === 'gaurikund') val = val - 3;
+      if (s.key === 'IWV') val = +(val * (1.3 - factor * 0.3)).toFixed(1);
+      if (s.key === 'CAPE') val = Math.round(val * factor);
+      if (s.key === 'CTT') val = Math.round(val - (elev - 1000) * 0.005);
       return {
         ...s,
         value: val
@@ -165,7 +180,7 @@ export class SessionStateManager {
     const loc = this.getActiveLocation();
     if (this.latestAiInference) {
       const ai = this.latestAiInference;
-      const locData = ai.locations?.[this.activeLocationId];
+      const locData = this.resolveLocationData(this.activeLocationId);
       const fcList = locData?.forecast || ai.forecast;
       const fc = fcList[this.activeHour] || fcList[3] || fcList[0];
       const probCloud = fc.cloudburst;
