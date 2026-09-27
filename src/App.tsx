@@ -7,6 +7,8 @@ import Pipeline from './components/Pipeline'
 import ExplainPanel from './components/ExplainPanel'
 import HistoricalView from './components/HistoricalView'
 import ModelView from './components/ModelView'
+import WeatherSignalsView from './components/WeatherSignalsView'
+import SystemStatusView from './components/SystemStatusView'
 import { alerts as initialAlerts, forecast as initialForecast, places as initialPlaces, signals as initialSignals, type Hazard } from './data/mock'
 import { api, type AlertItem, type AlertReportData, type DistrictLocation, type ExplainabilityData, type ForecastPoint, type SignalItem, type DataLineage } from './api/client'
 import { ModelStatusModal } from './components/ModelStatusModal'
@@ -1125,8 +1127,9 @@ function App() {
             />
           )}
           {page === 'Weather Signals' && (
-            <SignalsPage
+            <WeatherSignalsView
               signals={signals}
+              forecast={forecast}
               locations={locations}
               activeLocation={activeLocation}
               onSelectLocation={handleSelectLocation}
@@ -1163,7 +1166,7 @@ function App() {
             </>
           )}
           {page === 'System Status' && (
-            <StatusPage
+            <SystemStatusView
               onRunTest={runSimulation}
               aiConnected={aiConnected}
               aiModelMode={aiModelMode}
@@ -1640,53 +1643,6 @@ function MapPage(p: any) {
             <p>{p.activeLocation ? `${p.activeLocation.type} • ${p.activeLocation.elevation} • ${p.activeLocation.district} District` : (p.selected ? `${p.selected.hazard} • ${p.selected.level} • ${p.selected.prob}%` : 'Click a sector above or marker on map.')}</p>
           </div>
           <NowcastCard {...p} />
-        </div>
-      </div>
-    </>
-  )
-}
-
-function SignalsPage({
-  signals,
-  locations,
-  activeLocation,
-  onSelectLocation,
-  aiActive,
-  nowDate
-}: {
-  signals?: SignalItem[];
-  locations?: DistrictLocation[];
-  activeLocation?: DistrictLocation | null;
-  onSelectLocation?: (id: string) => void;
-  aiActive?: boolean;
-  nowDate?: Date;
-}) {
-  return (
-    <>
-      <DemoFlag aiActive={aiActive} />
-      {locations && locations.length > 0 && (
-        <SectorQuickbar
-          locations={locations}
-          activeLocation={activeLocation}
-          onSelectLocation={onSelectLocation}
-        />
-      )}
-      <Signals signals={signals} aiActive={aiActive} observationTime={formatObservationBase(nowDate || new Date())} />
-      <div className="source-strip">
-        <div>
-          <Radar size={18} />
-          <strong>INSAT-3D / INSAT-3DR</strong>
-          <span>Thermal IR CTT (Glaciation) • Integrated Water Vapour (IWV) Column</span>
-        </div>
-        <div>
-          <Database />
-          <strong>IMD & INDAA / ERA5</strong>
-          <span>Thermodynamics (CAPE & CIN) • Kinematic Wind Convergence & Shear</span>
-        </div>
-        <div>
-          <MapPinned />
-          <strong>SRTM & CartoDEM 30m</strong>
-          <span>Himalayan Elevation Gradients • Slope Runoff Acceleration</span>
         </div>
       </div>
     </>
@@ -2342,57 +2298,6 @@ function AlertsPage({
       </div>
     </>
   );
-}
-
-function StatusPage({ onRunTest, aiConnected, aiModelMode }: { onRunTest: () => void; aiConnected?: boolean; aiModelMode?: boolean }) {
-
-  const isAiActive = aiConnected || aiModelMode;
-  const rows = [
-    ['INSAT-3D Satellite Feed', 'ONLINE (TIR CTT + IWV)', Radar],
-    ['IMD / ERA5 Atmospheric Data', 'CONNECTED (CAPE, CIN, Shear)', Database],
-    ['SRTM 30m Topography', 'ACTIVE (Elevation + Slope Gradients)', MapPinned],
-    ['AI ConvLSTM Microservice (:8000)', isAiActive ? 'ONLINE (VajraNowcastNet)' : 'SIMULATION MODE', Cpu],
-    ['0–6h Spatial Rainfall Decoder', 'FUNCTIONAL (64x64 Grid)', Layers3],
-    ['Multi-Hazard Classification Head', 'FUNCTIONAL (Cloudburst/Flood/Storm)', Bell],
-    ['GIS Interactive Risk Map', 'ACTIVE (9 Monitored Sectors)', Activity]
-  ] as const;
-
-  return (
-    <>
-      <div className="page-intro">
-        <div>
-          <div className="kicker">SYSTEM STATUS</div>
-          <h2>AI Architecture Health & Readiness</h2>
-          <p>{isAiActive ? 'Live PyTorch AI microservice connected on :8000 • 45-Day Uttarakhand Training Active.' : 'Local backend connected at /api/* • Deterministic simulation engine active.'}</p>
-        </div>
-        <span className="online-badge" style={{ borderColor: isAiActive ? '#10b981' : undefined, color: isAiActive ? '#34d399' : undefined }}>
-          <i style={{ background: isAiActive ? '#10b981' : undefined }} /> {isAiActive ? 'NEURAL ENGINE ONLINE' : 'PROTOTYPE ENVIRONMENT'}
-        </span>
-      </div>
-      <div className="status-grid">
-        {rows.map(([n, s, I]) => (
-          <div className="status-card" key={n}>
-            <div className="status-icon"><I size={20} /></div>
-            <div>
-              <span>{n}</span>
-              <strong style={{ color: isAiActive ? '#34d399' : undefined }}>{s}</strong>
-            </div>
-            <Check size={18} style={{ color: isAiActive ? '#34d399' : undefined }} />
-          </div>
-        ))}
-      </div>
-      <div className="status-footer">
-        <div>
-          <Activity size={17} />
-          <strong>Operational Workflow</strong>
-          <span>INSAT & IMD Ingestion → ConvLSTM Encoding → 0-6h Gridded Nowcast → Saliency XAI</span>
-        </div>
-        <button className="primary-btn" onClick={onRunTest}>
-          <Play size={15} /> Run Live Neural Nowcast Test
-        </button>
-      </div>
-    </>
-  )
 }
 
 export default App

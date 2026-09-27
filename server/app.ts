@@ -68,6 +68,40 @@ app.get('/api/predict', async (req: Request, res: Response) => {
   return res.json(sessionState.getAlerts());
 });
 
+// GET /api/weather/live - Real-time atmospheric sounding from Open-Meteo API
+interface WeatherCacheEntry {
+  timestamp: number;
+  data: any;
+}
+const weatherCache = new Map<string, WeatherCacheEntry>();
+
+app.get('/api/weather/live', async (req: Request, res: Response) => {
+  try {
+    const activeLoc = sessionState.getActiveLocation();
+    const lat = req.query.lat ? parseFloat(req.query.lat as string) : activeLoc.lat;
+    const lon = req.query.lon ? parseFloat(req.query.lon as string) : activeLoc.long;
+
+    const cacheKey = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+    const cached = weatherCache.get(cacheKey);
+    const now = Date.now();
+    if (cached && now - cached.timestamp < 300000) { // 5-minute TTL cache
+      return res.json({ success: true, data: cached.data, cached: true });
+    }
+
+    const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m,cape,freezing_level_height,lifted_index,convective_inhibition,total_column_integrated_water_vapour&past_hours=6&forecast_hours=7&timezone=auto`;
+
+    const fetchRes = await fetch(apiUrl, { signal: AbortSignal.timeout(6000) });
+    if (!fetchRes.ok) {
+      throw new Error(`Open-Meteo API returned HTTP ${fetchRes.status}`);
+    }
+    const raw = await fetchRes.json();
+    weatherCache.set(cacheKey, { timestamp: now, data: raw });
+    return res.json({ success: true, data: raw, cached: false });
+  } catch (err: any) {
+    return res.status(502).json({ success: false, error: err.message || 'Failed to fetch live weather' });
+  }
+});
+
 // GET /api/signals
 app.get('/api/signals', (req: Request, res: Response) => {
   const locationId = req.query.location as string | undefined;
@@ -85,6 +119,7 @@ app.get('/api/signals', (req: Request, res: Response) => {
     }
   });
 });
+
 
 // GET /api/forecast
 app.get('/api/forecast', (_req: Request, res: Response) => {
