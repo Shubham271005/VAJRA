@@ -2562,3 +2562,21 @@
   padding: 1px 6px;
   letter-spacing: 0.03em;
 }
+
+/* Historical Catchment Leaflet Tooltips & Markers */
+.vajra-leaflet-tooltip {
+  background: rgba(7, 19, 34, 0.95) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #1e3a5f !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+}
+.vajra-leaflet-tooltip::before {
+  border-top-color: #1e3a5f !important;
+}
+.vajra-epicenter-marker, .vajra-sector-pin {
+  background: transparent !important;
+  border: none !important;
+}
+

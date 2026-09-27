@@ -5,6 +5,8 @@ import MapView, { type PlaceZone, type RiskCenter } from './components/MapView'
 import ChartCard from './components/ChartCard'
 import Pipeline from './components/Pipeline'
 import ExplainPanel from './components/ExplainPanel'
+import HistoricalView from './components/HistoricalView'
+import ModelView from './components/ModelView'
 import { alerts as initialAlerts, forecast as initialForecast, places as initialPlaces, signals as initialSignals, type Hazard } from './data/mock'
 import { api, type AlertItem, type AlertReportData, type DistrictLocation, type ExplainabilityData, type ForecastPoint, type SignalItem, type DataLineage } from './api/client'
 import { ModelStatusModal } from './components/ModelStatusModal'
@@ -1142,8 +1144,24 @@ function App() {
               onGenerateReport={() => setReportModalOpen(true)}
             />
           )}
-          {page === 'Historical Events' && <HistoricalPage onRunNowcast={() => { runSimulation(); setPage('Overview'); }} />}
-          {page === 'Model Insights' && <ModelPage aiActive={aiConnected || aiModelMode} />}
+          {page === 'Historical Events' && (
+            <HistoricalView
+              onRunNowcast={(scenarioId, locationId) => {
+                runSimulation(scenarioId);
+                if (locationId) {
+                  const match = places.find(p => p.id === locationId || p.name.toLowerCase().includes(locationId.toLowerCase()));
+                  if (match) setSelected(match);
+                }
+                setPage('Overview');
+              }}
+            />
+          )}
+          {page === 'Model Insights' && (
+            <>
+              <DemoFlag aiActive={aiConnected || aiModelMode} />
+              <ModelView aiActive={aiConnected || aiModelMode} />
+            </>
+          )}
           {page === 'System Status' && (
             <StatusPage
               onRunTest={runSimulation}
@@ -2326,177 +2344,8 @@ function AlertsPage({
   );
 }
 
-function HistoricalPage({ onRunNowcast }: { onRunNowcast: () => void }) {
-  return (
-    <>
-      <div className="page-intro">
-        <div>
-          <div className="kicker">HISTORICAL EVENTS</div>
-          <h2>Kedarnath — June 2013</h2>
-          <p>Trained AI Case Study • ConvLSTM Spatio-Temporal Nowcasting over Mandakini Valley.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span className="retro-chip" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', borderColor: 'rgba(34, 197, 94, 0.3)' }}>
-            AI CHECKPOINT ACTIVE
-          </span>
-          <button className="primary-btn" onClick={onRunNowcast} style={{ background: '#0284c7' }}>
-            <Play size={14} /> Run Kedarnath 2013 AI Nowcast
-          </button>
-        </div>
-      </div>
-      <div className="history-grid">
-        <div className="history-card">
-          <div className="event-year">2013</div>
-          <div className="timeline-events">
-            {[
-              ['01', 'Historical Trigger (June 13–15)', 'Premature Arabian Sea monsoon surge collided with mid-latitude Western Disturbance trough over Garhwal Himalayas.'],
-              ['02', 'Orographic Locking (June 15–16)', 'Deep convective cell trapped in Mandakini valley chimney; CTT glaciated to -65°C with IWV > 45 kg/m².'],
-              ['03', 'Torrential Cloudburst (June 16 evening)', 'Over 325 mm rainfall in 24 hours with localized burst rates exceeding 60-70 mm/hr.'],
-              ['04', 'Chorabari Lake Breach & Flash Flood (June 17)', 'Glacial moraine failure unleashed massive debris surge down Rambara, Gaurikund, and downstream to Rudraprayag.']
-            ].map(([n, t, d]) => (
-              <div className="history-step" key={n}>
-                <span>{n}</span>
-                <div>
-                  <strong>{t}</strong>
-                  <p>{d}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="how-card">
-          <div className="kicker">HOW VAJRA CONVLSTM ASSISTS</div>
-          <h3>0–6 Hour Lead Time with 100% Severe POD</h3>
-          <div className="hypo-map">
-            <div className="mountain m1" />
-            <div className="mountain m2" />
-            <div className="river-line" />
-            <div className="hotspot h1" />
-            <div className="hotspot h2" />
-            <span>AI RISK VECTOR FIELD</span>
-          </div>
-          <p>Trained on Mandakini catchment topography (890m to 3,960m) fused with ERA5 reanalysis and satellite infrared lapse rates.</p>
-          <div className="target-box">
-            <Gauge />
-            <div>
-              <span>Verification POD</span>
-              <strong style={{ color: '#22c55e' }}>100% / 99.8%</strong>
-            </div>
-            <div>
-              <span>Model Threat Score</span>
-              <strong style={{ color: '#38bdf8' }}>CSI: 0.410</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
-function ModelPage({ aiActive }: { aiActive?: boolean }) {
-  return (
-    <>
-      <DemoFlag aiActive={aiActive} />
-      <Pipeline />
-
-      {/* AI Model Trained Checkpoint Metrics Card */}
-      <div style={{
-        margin: '16px 0 24px 0',
-        padding: '16px 20px',
-        background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(30, 41, 59, 0.6) 100%)',
-        border: '1px solid rgba(56, 189, 248, 0.25)',
-        borderRadius: '12px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div>
-            <div className="kicker" style={{ color: '#38bdf8' }}>ACTIVE NEURAL CHECKPOINT</div>
-            <h3 style={{ margin: '4px 0 0 0', fontSize: '18px' }}>VajraNowcastNet (ConvLSTM + Transformer) • Uttarakhand 45-Day Benchmark</h3>
-          </div>
-          <span style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            padding: '4px 10px',
-            borderRadius: '20px',
-            background: 'rgba(34, 197, 94, 0.2)',
-            color: '#4ade80',
-            border: '1px solid rgba(34, 197, 94, 0.3)'
-          }}>
-            ● TRAINED ON 1,080 HOURS OF MULTI-SENSOR REANALYSIS
-          </span>
-        </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: '12px',
-          marginTop: '12px'
-        }}>
-          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block' }}>Best Validation Loss</span>
-            <strong style={{ fontSize: '18px', color: '#2dd4bf' }}>0.0717</strong>
-            <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Epoch 10 Checkpoint</span>
-          </div>
-          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block' }}>Rainfall RMSE</span>
-            <strong style={{ fontSize: '18px', color: '#38bdf8' }}>3.63 mm/hr</strong>
-            <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>MAE: 3.34 mm/hr</span>
-          </div>
-          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block' }}>Thunderstorm F1</span>
-            <strong style={{ fontSize: '18px', color: '#facc15' }}>0.9745</strong>
-            <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Prec: 95.0% • Rec: 100%</span>
-          </div>
-          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block' }}>Brier Score</span>
-            <strong style={{ fontSize: '18px', color: '#22c55e' }}>0.0048</strong>
-            <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Calibrated Multi-Hazard</span>
-          </div>
-          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block' }}>Inference Latency</span>
-            <strong style={{ fontSize: '18px', color: '#facc15' }}>&lt; 38 ms</strong>
-            <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Local CPU forward pass</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="architecture-grid">
-        <div className="arch-card">
-          <div className="kicker">MULTI-HAZARD OUTPUT</div>
-          <h3>One fused grid, three hazard probabilities</h3>
-          <div className="hazard-output">
-            <div>
-              <CloudLightning />
-              <span>Thunderstorm</span>
-              <strong>0–6h</strong>
-            </div>
-            <div>
-              <Waves />
-              <span>Cloudburst</span>
-              <strong>0–6h</strong>
-            </div>
-            <div>
-              <AlertTriangle />
-              <span>Flash Flood</span>
-              <strong>0–6h + DEM</strong>
-            </div>
-          </div>
-        </div>
-        <div className="arch-card">
-          <div className="kicker">TECHNICAL POSITIONING</div>
-          <h3>Dual-Engine Architecture</h3>
-          <p>Active engine: Real PyTorch ConvLSTM neural model trained on 45 days (1,080 hours) of multi-sensor data across all Uttarakhand valleys (June 1 – July 15, 2013) with automated fallback to deterministic simulation.</p>
-          <div className="roadmap">
-            <span style={{ color: '#22c55e', borderColor: '#22c55e' }}><b>01</b> Data ready (ERA5+DEM)</span>
-            <span style={{ color: '#22c55e', borderColor: '#22c55e' }}><b>02</b> ConvLSTM Trained</span>
-            <span style={{ color: '#22c55e', borderColor: '#22c55e' }}><b>03</b> CSI/POD Validated</span>
-            <span style={{ color: '#22c55e', borderColor: '#22c55e' }}><b>04</b> API Serving</span>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
 function StatusPage({ onRunTest, aiConnected, aiModelMode }: { onRunTest: () => void; aiConnected?: boolean; aiModelMode?: boolean }) {
+
   const isAiActive = aiConnected || aiModelMode;
   const rows = [
     ['INSAT-3D Satellite Feed', 'ONLINE (TIR CTT + IWV)', Radar],
