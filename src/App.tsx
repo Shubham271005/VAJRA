@@ -8,6 +8,7 @@ import ExplainPanel from './components/ExplainPanel'
 import { alerts as initialAlerts, forecast as initialForecast, places as initialPlaces, signals as initialSignals, type Hazard } from './data/mock'
 import { api, type AlertItem, type AlertReportData, type DistrictLocation, type ExplainabilityData, type ForecastPoint, type SignalItem, type DataLineage } from './api/client'
 import { ModelStatusModal } from './components/ModelStatusModal'
+import { formatLiveClock, formatObservationBase, getLeadTargetTime } from './utils/nowcastTime'
 
 type Page = 'Overview' | 'Live Risk Map' | 'Weather Signals' | 'Alerts' | 'Historical Events' | 'Model Insights' | 'System Status'
 const nav: [Page, typeof Activity][] = [
@@ -565,6 +566,18 @@ function App() {
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [dataLineage, setDataLineage] = useState<DataLineage | null>(null);
 
+  // Real-time ticking clock for live nowcast tracking
+  const [nowDate, setNowDate] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowDate(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const activeTarget = getLeadTargetTime(nowDate, hour);
+
   const locationBtnRef = useRef<HTMLButtonElement>(null);
 
   // Fetch initial data from local backend and run live model inference
@@ -987,9 +1000,19 @@ function App() {
               </span>
             </button>
 
-            <div className="sim-time">
-              <span>SIMULATION TIME</span>
-              <strong>{simTimestamp.includes('•') ? simTimestamp : `06 SEP 2026 • 18:${String(30 + hour).padStart(2, '0')} IST`}</strong>
+            <div
+              className="sim-time"
+              title={`Live system observation time: ${formatLiveClock(nowDate)}. Active nowcast lead horizon: ${activeTarget.timeStr} (${activeTarget.relativeLabel})`}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="sim-time-tag">SIMULATION / SYSTEM TIME</span>
+              </div>
+              <strong>{formatLiveClock(nowDate)}</strong>
+              <div className="header-horizon-tag">
+                <span>NOWCAST TARGET:</span>
+                <strong>{activeTarget.timeStr}</strong>
+                <span>({activeTarget.shortLead})</span>
+              </div>
             </div>
 
             <button
@@ -1071,6 +1094,8 @@ function App() {
               onAcknowledgeAlert={handleAcknowledgeAlert}
               onViewAlertOnMap={handleViewAlertOnMap}
               setPage={setPage}
+              nowDate={nowDate}
+              activeTarget={activeTarget}
             />
           )}
           {page === 'Live Risk Map' && (
@@ -1095,6 +1120,8 @@ function App() {
               onSelectLocation={handleSelectLocation}
               aiConnected={aiConnected}
               aiModelMode={aiModelMode}
+              nowDate={nowDate}
+              activeTarget={activeTarget}
             />
           )}
           {page === 'Weather Signals' && (
@@ -1104,6 +1131,7 @@ function App() {
               activeLocation={activeLocation}
               onSelectLocation={handleSelectLocation}
               aiActive={aiConnected || aiModelMode}
+              nowDate={nowDate}
             />
           )}
           {page === 'Alerts' && (
@@ -1189,6 +1217,14 @@ function Overview(p: any) {
             <div>
               <div className="kicker">HYPER-LOCAL RISK LAYER</div>
               <h2>Live Hazard Field <span>•</span> 0–6 hour nowcast</h2>
+              {p.activeTarget && (
+                <div className="toolbar-horizon-badge">
+                  <span className="hud-indicator-dot" />
+                  <span>NOWCAST TARGET: <strong>{p.activeTarget.timeStr}</strong> ({p.activeTarget.relativeLabel})</span>
+                  <span style={{ opacity: 0.5 }}>•</span>
+                  <span>Base Observation: {p.activeTarget.baseObservationStr}</span>
+                </div>
+              )}
             </div>
             <div className="hazard-tabs">
               {(['All', 'Cloudburst', 'Flash Flood', 'Thunderstorm'] as const).map(x => (
@@ -1218,6 +1254,7 @@ function Overview(p: any) {
               }}
               places={p.places}
               centers={p.centers}
+              nowDate={p.nowDate}
             />
             <div className="map-legend">
               <strong>RISK INTENSITY</strong>
@@ -1253,7 +1290,7 @@ function Overview(p: any) {
         <AlertCard {...p} />
       </section>
       <section className="below-grid">
-        <Signals strip signals={p.signals} aiActive={p.aiConnected || p.aiModelMode} />
+        <Signals strip signals={p.signals} aiActive={p.aiConnected || p.aiModelMode} observationTime={p.activeTarget?.baseObservationStr} />
         <NowcastCard
           hour={p.hour}
           setHour={p.setHour}
@@ -1262,6 +1299,7 @@ function Overview(p: any) {
           currentStorm={p.currentStorm}
           forecast={p.forecast}
           runSimulation={p.runSimulation}
+          nowDate={p.nowDate}
         />
       </section>
       <Pipeline />
@@ -1307,8 +1345,18 @@ function AlertCard(p: any) {
       </div>
 
       <div className="lead">
-        <span>ESTIMATED LEAD TIME</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>ESTIMATED LEAD TIME</span>
+          {p.activeTarget && (
+            <span className="lead-clock-pill">Target: {p.activeTarget.timeStr}</span>
+          )}
+        </div>
         <strong>{alertLead}</strong>
+        {p.activeTarget && (
+          <div style={{ fontSize: '9px', color: '#38bdf8', marginTop: '3px', fontWeight: 600 }}>
+            Projected Impact Horizon: {p.activeTarget.timeStr} ({p.activeTarget.relativeLabel})
+          </div>
+        )}
       </div>
 
       <div className="trigger-box">
@@ -1389,14 +1437,21 @@ function AlertCard(p: any) {
   );
 }
 
-function Signals({ strip = false, signals, aiActive = false }: { strip?: boolean; signals?: SignalItem[]; aiActive?: boolean }) {
+function Signals({ strip = false, signals, aiActive = false, observationTime }: { strip?: boolean; signals?: SignalItem[]; aiActive?: boolean; observationTime?: string }) {
   const activeSignals = signals && signals.length > 0 ? signals : (initialSignals as SignalItem[]);
   return (
     <div className={strip ? 'signals-strip' : ''}>
       <div className="section-top">
         <div>
           <div className="kicker">ATMOSPHERIC STATE</div>
-          <h2>Live Atmospheric Signals</h2>
+          <h2>
+            Live Atmospheric Signals
+            {observationTime && (
+              <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500, marginLeft: '8px' }}>
+                • Observed at {observationTime}
+              </span>
+            )}
+          </h2>
         </div>
         {aiActive ? (
           <span className="simulation-chip" style={{ color: '#2dd4bf', borderColor: '#14b8a6', background: 'rgba(20, 184, 166, 0.15)' }}>
@@ -1425,12 +1480,16 @@ function Signals({ strip = false, signals, aiActive = false }: { strip?: boolean
 
 function NowcastCard(p: any) {
   const activeForecast: ForecastPoint[] = p.forecast && p.forecast.length > 0 ? p.forecast : initialForecast;
+  const currentTarget = getLeadTargetTime(p.nowDate || new Date(), p.hour || 0);
   return (
     <div className="nowcast-card">
       <div className="section-top">
         <div>
           <div className="kicker">FORECAST EVOLUTION</div>
           <h2>Probability Timeline</h2>
+          <div className="timeline-horizon-indicator" style={{ marginTop: '4px' }}>
+            <span>Target Horizon: <strong>{currentTarget.timeStr}</strong> ({currentTarget.relativeLabel})</span>
+          </div>
         </div>
         <button
           className="refresh"
@@ -1441,12 +1500,16 @@ function NowcastCard(p: any) {
         </button>
       </div>
       <div className="timeline">
-        {activeForecast.map((f, i) => (
-          <button key={f.hour} className={p.hour === i ? 'active' : ''} onClick={() => p.setHour(i)}>
-            <span>{f.label}</span>
-            <strong>{f.cloudburst}%</strong>
-          </button>
-        ))}
+        {activeForecast.map((f, i) => {
+          const stepTarget = getLeadTargetTime(p.nowDate || new Date(), i);
+          return (
+            <button key={f.hour} className={p.hour === i ? 'active' : ''} onClick={() => p.setHour(i)}>
+              <span className="tl-lead">{f.label}</span>
+              <span className="tl-clock">{stepTarget.clockOnly}</span>
+              <strong>{f.cloudburst}%</strong>
+            </button>
+          );
+        })}
       </div>
       <div className="timeline-chart">
         <div className="timeline-grid">
@@ -1492,6 +1555,14 @@ function MapPage(p: any) {
             <div>
               <div className="kicker">GIS COMMAND VIEW</div>
               <h2>Hyper-Local Risk Map</h2>
+              {p.activeTarget && (
+                <div className="toolbar-horizon-badge">
+                  <span className="hud-indicator-dot" />
+                  <span>NOWCAST TARGET: <strong>{p.activeTarget.timeStr}</strong> ({p.activeTarget.relativeLabel})</span>
+                  <span style={{ opacity: 0.5 }}>•</span>
+                  <span>Base Observation: {p.activeTarget.baseObservationStr}</span>
+                </div>
+              )}
             </div>
             <div className="hazard-tabs">
               {(['All', 'Cloudburst', 'Flash Flood', 'Thunderstorm'] as const).map(x => (
@@ -1521,6 +1592,7 @@ function MapPage(p: any) {
               }}
               places={p.places}
               centers={p.centers}
+              nowDate={p.nowDate}
             />
             <div className="map-legend">
               <strong>RISK INTENSITY</strong>
@@ -1562,13 +1634,15 @@ function SignalsPage({
   locations,
   activeLocation,
   onSelectLocation,
-  aiActive
+  aiActive,
+  nowDate
 }: {
   signals?: SignalItem[];
   locations?: DistrictLocation[];
   activeLocation?: DistrictLocation | null;
   onSelectLocation?: (id: string) => void;
   aiActive?: boolean;
+  nowDate?: Date;
 }) {
   return (
     <>
@@ -1580,7 +1654,7 @@ function SignalsPage({
           onSelectLocation={onSelectLocation}
         />
       )}
-      <Signals signals={signals} aiActive={aiActive} />
+      <Signals signals={signals} aiActive={aiActive} observationTime={formatObservationBase(nowDate || new Date())} />
       <div className="source-strip">
         <div>
           <Radar size={18} />
@@ -2177,9 +2251,14 @@ function AlertsPage({
                     </div>
                   </td>
                   <td>
-                    <span style={{ fontWeight: 600, color: a.lead.includes('30') || a.lead.includes('1 hr') ? '#fca5a5' : '#cbd5e1' }}>
+                    <span style={{ fontWeight: 600, color: a.lead.includes('30') || a.lead.includes('1 hr') ? '#fca5a5' : '#cbd5e1', display: 'block' }}>
                       {a.lead}
                     </span>
+                    {a.timeDispatched && (
+                      <span style={{ fontSize: '8px', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
+                        {a.timeDispatched}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div className="alert-trigger-snippet">

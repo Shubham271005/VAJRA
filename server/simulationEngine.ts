@@ -1048,20 +1048,31 @@ function generateAllSectorAlerts(_rawAlerts: AlertItem[], scenarioIndex: number,
   }).map((a, idx) => ({ ...a, id: idx + 1 }));
 }
 
+function getLiveFormattedTimestamp(offsetMinutes: number = 0): string {
+  const d = new Date(Date.now() + offsetMinutes * 60 * 1000);
+  const day = d.getDate().toString().padStart(2, '0');
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${day} ${month} ${year} • ${time} IST`;
+}
+
 export class SimulationEngine {
   private scenarioIndex: number = 0;
   private totalSimulationsRun: number = 0;
 
   public getCurrentScenario(): SimulationOutput {
     const raw = SCENARIOS[this.scenarioIndex];
+    const liveTime = getLiveFormattedTimestamp(this.scenarioIndex * 45);
     return {
       scenarioId: raw.id,
       scenarioName: raw.name,
-      simulatedTimestamp: raw.simulatedTimestamp,
+      simulatedTimestamp: liveTime,
       pipelineStages: this.generatePipelineSteps(),
       forecast: JSON.parse(JSON.stringify(raw.forecast)),
       signals: JSON.parse(JSON.stringify(raw.signals)),
-      alerts: generateAllSectorAlerts(JSON.parse(JSON.stringify(raw.alerts)), this.scenarioIndex, raw.simulatedTimestamp),
+      alerts: generateAllSectorAlerts(JSON.parse(JSON.stringify(raw.alerts)), this.scenarioIndex, liveTime),
       places: JSON.parse(JSON.stringify(raw.places)),
       centers: JSON.parse(JSON.stringify(raw.centers)),
       explainability: JSON.parse(JSON.stringify(raw.explainability))
@@ -1086,7 +1097,7 @@ export class SimulationEngine {
       scenarioIndex: this.scenarioIndex,
       scenarioName: SCENARIOS[this.scenarioIndex].name,
       totalSimulationsRun: this.totalSimulationsRun,
-      activeTimestamp: SCENARIOS[this.scenarioIndex].simulatedTimestamp,
+      activeTimestamp: getLiveFormattedTimestamp(this.scenarioIndex * 45),
       supportedHazards: ['Cloudburst', 'Flash Flood', 'Thunderstorm']
     };
   }

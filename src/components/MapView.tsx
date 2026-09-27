@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { type Hazard, type RiskLevel } from "../data/mock";
+import { getLeadTargetTime } from "../utils/nowcastTime";
 
 export interface PlaceZone {
   id: string;
@@ -44,6 +45,7 @@ type Props = {
   setSelected?: (p: PlaceZone) => void;
   places?: PlaceZone[];
   centers?: RiskCenter[];
+  nowDate?: Date;
 };
 
 // Authentic GIS coordinates for Mandakini River Basin (Kedarnath 2013 Catchment)
@@ -342,6 +344,7 @@ export default function MapView({
   setSelected,
   places,
   centers,
+  nowDate,
 }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -359,6 +362,7 @@ export default function MapView({
   const handleSelect = onSelect || setSelected || (() => {});
   const activePlaces = places && places.length > 0 ? places : [];
   const activeCenters = centers && centers.length > 0 ? centers : DEFAULT_CENTERS;
+  const leadTarget = getLeadTargetTime(nowDate || new Date(), hour);
 
   // Initialize Leaflet Map once
   useEffect(() => {
@@ -723,6 +727,18 @@ export default function MapView({
         aria-label="Interactive hyper-local risk map"
         style={{ width: "100%", height: "100%" }}
       />
+      {/* Floating Dynamic Nowcast Horizon HUD */}
+      <div className="map-floating-horizon-hud" aria-live="polite">
+        <div className="hud-indicator-dot" />
+        <div className="hud-content">
+          <span className="hud-label">NOWCAST TARGET HORIZON</span>
+          <span className="hud-time">{leadTarget.timeStr}</span>
+          <span className="hud-sub">
+            {hour === 0 ? "Live Baseline Observation" : `+${hour}h Lead Projection from ${leadTarget.baseObservationStr}`}
+          </span>
+        </div>
+      </div>
+
       {layers.population && (
         <div
           style={{

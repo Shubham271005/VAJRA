@@ -2337,3 +2337,178 @@
   color: #fca5a5;
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
 }
+
+/* =========================================================================
+   DYNAMIC NOWCAST TIME & LEAD HORIZON BADGES
+   ========================================================================= */
+.sim-time {
+  padding-right: 14px;
+  border-right: 1px solid #1a2a3c;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sim-time-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sim-time-tag span {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.header-horizon-tag {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 10px;
+  border-radius: 7px;
+  background: rgba(13, 148, 136, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+}
+
+.header-horizon-tag .horizon-kicker {
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #2dd4bf;
+}
+
+.header-horizon-tag strong {
+  font-size: 10px;
+  color: #e2e8f0;
+}
+
+.toolbar-horizon-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.toolbar-horizon-badge strong {
+  color: #2dd4bf;
+}
+
+.timeline-horizon-indicator {
+  font-size: 9px;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.timeline-horizon-indicator strong {
+  color: #2dd4bf;
+}
+
+.timeline button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 2px;
+}
+
+.timeline button .tl-lead {
+  font-size: 7.5px;
+  font-weight: 700;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.timeline button .tl-clock {
+  font-size: 8px;
+  color: #38bdf8;
+  font-weight: 600;
+  margin: 1px 0;
+}
+
+.map-floating-horizon-hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 400;
+  background: rgba(7, 19, 34, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  border-radius: 9px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 15px rgba(45, 212, 191, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.hud-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2dd4bf;
+  box-shadow: 0 0 10px #2dd4bf;
+  animation: pulseDot 2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulseDot {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.hud-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.hud-label {
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #5eead4;
+}
+
+.hud-time {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.hud-sub {
+  font-size: 8px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.lead-target-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 3px;
+  gap: 8px;
+}
+
+.lead-clock-pill {
+  font-size: 9px;
+  font-weight: 600;
+  color: #2dd4bf;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 5px;
+  padding: 2px 7px;
+}

@@ -158,7 +158,7 @@ export const signals = [
   }
 ];
 
-export const alerts = [
+const rawAlerts = [
   {
     "id": 1,
     "locationId": "gangotri",
@@ -1220,6 +1220,21 @@ export const alerts = [
     "timeDispatched": "06 SEP 2026 \u2022 18:30 IST"
   }
 ] as any[];
+
+function getInitialDispatchedTime(): string {
+  const d = new Date();
+  const day = d.getDate().toString().padStart(2, '0');
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${day} ${month} ${year} • ${time} IST`;
+}
+
+export const alerts = rawAlerts.map(a => ({
+  ...a,
+  timeDispatched: getInitialDispatchedTime()
+}));
 
 export const places = [
   {

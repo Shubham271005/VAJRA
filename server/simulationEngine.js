@@ -979,6 +979,16 @@ function generateAllSectorAlerts(rawAlerts, scenarioIndex, timestamp) {
   }).map((a, idx) => ({ ...a, id: idx + 1 }));
 }
 
+function getLiveFormattedTimestamp(offsetMinutes = 0) {
+  const d = new Date(Date.now() + offsetMinutes * 60 * 1000);
+  const day = d.getDate().toString().padStart(2, '0');
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${day} ${month} ${year} • ${time} IST`;
+}
+
 export class SimulationEngine {
   constructor() {
     this.scenarioIndex = 0;
@@ -988,14 +998,15 @@ export class SimulationEngine {
   getCurrentScenario() {
     const raw = SCENARIOS[this.scenarioIndex];
     const isBaseScenario = this.scenarioIndex === 0;
+    const liveTime = getLiveFormattedTimestamp(this.scenarioIndex * 45);
     return {
       scenarioId: raw.id,
       scenarioName: isBaseScenario ? (modelCache.scenario || raw.name) : raw.name,
-      simulatedTimestamp: isBaseScenario ? (modelCache.data_lineage?.observation_time || raw.simulatedTimestamp) : raw.simulatedTimestamp,
+      simulatedTimestamp: liveTime,
       pipelineStages: this.generatePipelineSteps(),
       forecast: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.forecast)) : JSON.parse(JSON.stringify(raw.forecast)),
       signals: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.signals)) : JSON.parse(JSON.stringify(raw.signals)),
-      alerts: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.alerts)) : generateAllSectorAlerts(JSON.parse(JSON.stringify(raw.alerts)), this.scenarioIndex, raw.simulatedTimestamp),
+      alerts: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.alerts)) : generateAllSectorAlerts(JSON.parse(JSON.stringify(raw.alerts)), this.scenarioIndex, liveTime),
       places: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.places)) : JSON.parse(JSON.stringify(raw.places)),
       centers: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.centers)) : JSON.parse(JSON.stringify(raw.centers)),
       explainability: isBaseScenario ? JSON.parse(JSON.stringify(modelCache.explainability)) : JSON.parse(JSON.stringify(raw.explainability))
@@ -1020,7 +1031,7 @@ export class SimulationEngine {
       scenarioIndex: this.scenarioIndex,
       scenarioName: SCENARIOS[this.scenarioIndex].name,
       totalSimulationsRun: this.totalSimulationsRun,
-      activeTimestamp: SCENARIOS[this.scenarioIndex].simulatedTimestamp,
+      activeTimestamp: getLiveFormattedTimestamp(this.scenarioIndex * 45),
       supportedHazards: ['Cloudburst', 'Flash Flood', 'Thunderstorm']
     };
   }
