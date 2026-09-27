@@ -1,0 +1,1157 @@
+// @ts-ignore
+import { modelCache } from './modelCache.js';
+
+export type Hazard = 'Cloudburst' | 'Flash Flood' | 'Thunderstorm';
+export type RiskLevel = 'HIGH' | 'MODERATE' | 'WATCH';
+
+export interface ForecastPoint {
+  hour: number;
+  label: string;
+  cloudburst: number;
+  flood: number;
+  storm: number;
+}
+
+export interface SignalItem {
+  key: string;
+  name: string;
+  value: number;
+  unit: string;
+  trend: string;
+  status: string;
+  series: number[];
+}
+
+export interface AlertItem {
+  id: number;
+  locationId?: string;
+  district?: string;
+  elevation?: string;
+  lat?: number;
+  long?: number;
+  severity: RiskLevel;
+  event: Hazard;
+  location: string;
+  prob: number;
+  lead: string;
+  trigger: string;
+  status: 'ACTIVE' | 'MONITOR' | 'WATCH' | 'ACKNOWLEDGED';
+  acknowledgedAt?: string;
+  actionRecommended: string;
+  protocol?: string;
+  rainfall?: number;
+  slope?: string;
+  timeDispatched?: string;
+}
+
+export interface PlaceZone {
+  id: string;
+  name: string;
+  lat: number;
+  long: number;
+  hazard: Hazard;
+  prob: number;
+  level: RiskLevel;
+  lead: string;
+  signals: string;
+}
+
+export interface RiskCenter {
+  lat: number;
+  long: number;
+  r: number;
+  level: RiskLevel;
+  hazard: Hazard;
+}
+
+export interface ExplainabilityData {
+  summary: string;
+  rows: [string, string, string][];
+  overallConfidence: 'HIGH' | 'VERY HIGH' | 'MODERATE';
+  confidenceScore: number;
+  hazardSplit: {
+    cloudburst: string;
+    flood: string;
+    storm: string;
+  };
+}
+
+export interface SimulationStepResult {
+  step: number;
+  name: string;
+  source: string;
+  status: 'completed';
+  executionTimeMs: number;
+  details: string;
+}
+
+export interface SimulationOutput {
+  scenarioId: string;
+  scenarioName: string;
+  simulatedTimestamp: string;
+  pipelineStages: SimulationStepResult[];
+  forecast: ForecastPoint[];
+  signals: SignalItem[];
+  alerts: AlertItem[];
+  places: PlaceZone[];
+  centers: RiskCenter[];
+  explainability: ExplainabilityData;
+}
+
+export interface DistrictLocationItem {
+  id: string;
+  name: string;
+  district: string;
+  lat: number;
+  long: number;
+  elevation: string;
+  type: string;
+  description: string;
+  hazard?: Hazard;
+  leadHours?: number;
+  isMajor?: boolean;
+}
+
+// 3 Deterministic simulation states that accurately mimic convective lifecycle in the Himalayas
+const SCENARIOS = [
+  {
+    id: 'stage-1-approaching',
+    name: 'Convective Initiation & Pre-Burst Convergence',
+    simulatedTimestamp: '06 SEP 2026 • 18:30 IST',
+    forecast: [
+      { hour: 0, label: 'NOW', cloudburst: 52, flood: 43, storm: 68 },
+      { hour: 1, label: '+1 HR', cloudburst: 61, flood: 51, storm: 77 },
+      { hour: 2, label: '+2 HR', cloudburst: 74, flood: 62, storm: 87 },
+      { hour: 3, label: '+3 HR', cloudburst: 82, flood: 67, storm: 91 },
+      { hour: 4, label: '+4 HR', cloudburst: 77, flood: 64, storm: 84 },
+      { hour: 5, label: '+5 HR', cloudburst: 63, flood: 55, storm: 72 },
+      { hour: 6, label: '+6 HR', cloudburst: 48, flood: 44, storm: 58 }
+    ],
+    signals: [
+      { key: 'IWV', name: 'Integrated Water Vapour', value: 42.8, unit: 'kg/m²', trend: '+34%', status: 'RISING', series: [34, 35, 36, 37, 39, 41, 42.8] },
+      { key: 'CAPE', name: 'Convective Available Potential Energy', value: 2140, unit: 'J/kg', trend: '+18%', status: 'HIGH', series: [1680, 1750, 1810, 1900, 1990, 2070, 2140] },
+      { key: 'CIN', name: 'Convective Inhibition', value: 34, unit: 'J/kg', trend: '-29%', status: 'DECREASING', series: [55, 51, 48, 44, 41, 37, 34] },
+      { key: 'WCONV', name: 'Low-level Wind Convergence', value: 8.7, unit: '10⁻⁴ s⁻¹', trend: '+21%', status: 'HIGH', series: [5.5, 6.1, 6.4, 7.0, 7.5, 8.2, 8.7] },
+      { key: 'VWS', name: 'Vertical Wind Shear', value: 19.4, unit: 'm/s', trend: '+11%', status: 'ELEVATED', series: [15, 15.7, 16.3, 17.2, 18.1, 18.7, 19.4] },
+      { key: 'CTT', name: 'Cloud Top Temperature', value: -52, unit: '°C', trend: '-8°C', status: 'COOLING', series: [-37, -39, -41, -43, -46, -49, -52] }
+    ],
+    places: [
+      { id: 'kedarnath', name: 'Kedarnath / Chorabari Sector', lat: 30.735, long: 79.067, hazard: 'Cloudburst' as Hazard, prob: 88, level: 'HIGH' as RiskLevel, lead: '1 hr', signals: 'Glaciated CTT -43°C + Peak Rain 45.7 mm/hr' },
+      { id: 'gaurikund', name: 'Rambara - Gaurikund Gorge', lat: 30.652, long: 79.043, hazard: 'Flash Flood' as Hazard, prob: 88, level: 'HIGH' as RiskLevel, lead: '2 hrs', signals: 'Peak Rain 67.2 mm/hr + Steep Slopes (38°)' },
+      { id: 'guptkashi', name: 'Guptkashi - Phata Ridge', lat: 30.523, long: 79.077, hazard: 'Thunderstorm' as Hazard, prob: 84, level: 'HIGH' as RiskLevel, lead: '1 hr', signals: 'Thermodynamic CAPE 2480 J/kg + Strong Shear' },
+      { id: 'rudraprayag', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Flash Flood' as Hazard, prob: 82, level: 'HIGH' as RiskLevel, lead: '4 hrs', signals: 'Hydrologic Flood Routing Surge Wave' }
+    ],
+    centers: [
+      { lat: 30.735, long: 79.067, r: 0.045, level: 'HIGH' as RiskLevel, hazard: 'Cloudburst' as Hazard },
+      { lat: 30.652, long: 79.043, r: 0.040, level: 'HIGH' as RiskLevel, hazard: 'Flash Flood' as Hazard },
+      { lat: 30.523, long: 79.077, r: 0.035, level: 'HIGH' as RiskLevel, hazard: 'Thunderstorm' as Hazard },
+      { lat: 30.285, long: 78.981, r: 0.030, level: 'HIGH' as RiskLevel, hazard: 'Flash Flood' as Hazard }
+    ],
+    alerts: [
+      { id: 1, severity: 'HIGH' as RiskLevel, event: 'Cloudburst' as Hazard, location: 'Kedarnath / Chorabari Sector', prob: 88, lead: '1 hr', trigger: 'Glaciated CTT -43°C + Peak Rain 45.7 mm/hr', status: 'ACTIVE' as const, actionRecommended: 'IMMEDIATE EVACUATION: Move pilgrims above Mandakini flood plain to high ground behind shrine sanctuary' },
+      { id: 2, severity: 'HIGH' as RiskLevel, event: 'Flash Flood' as Hazard, location: 'Rambara - Gaurikund Gorge', prob: 88, lead: '2 hrs', trigger: 'Peak Rain 67.2 mm/hr + Steep Slopes (38°)', status: 'ACTIVE' as const, actionRecommended: 'HALT ALL TRANSIT: Close Gaurikund-Kedarnath trek corridor and clear Rambara bridge settlements' },
+      { id: 3, severity: 'HIGH' as RiskLevel, event: 'Thunderstorm' as Hazard, location: 'Guptkashi - Phata Ridge', prob: 84, lead: '1 hr', trigger: 'CAPE 2480 J/kg + High Shear', status: 'ACTIVE' as const, actionRecommended: 'GROUND HELICOPTER FLIGHTS: Ground shuttle operations and secure hilltop communication arrays' },
+      { id: 4, severity: 'HIGH' as RiskLevel, event: 'Flash Flood' as Hazard, location: 'Rudraprayag Control Zone', prob: 82, lead: '4 hrs', trigger: 'Hydrologic Flood Routing Surge Wave', status: 'ACTIVE' as const, actionRecommended: 'RIVERFRONT CLEARANCE: Clear Alaknanda-Mandakini confluence ghats and alert downstream barrages' }
+    ],
+    explainability: {
+      summary: 'Deep convective cell approaching Rudraprayag district with severe moisture pooling and rapid cloud top glaciation.',
+      rows: [
+        ['IWV surge detected', '+34% over recent observation window', 'Strong contribution'],
+        ['CAPE increasing', 'Convective instability rising above 2,100 J/kg', 'Strong contribution'],
+        ['CIN weakening', 'Convective inhibition eroded to 34 J/kg', 'Moderate contribution'],
+        ['Low-level wind convergence', 'Orographic forcing along Mandakini valley', 'Moderate contribution'],
+        ['Cloud Top Temperature', 'Rapid cloud development signal (dropped to -52°C)', 'Strong contribution']
+      ] as [string, string, string][],
+      overallConfidence: 'HIGH' as const,
+      confidenceScore: 88,
+      hazardSplit: {
+        cloudburst: 'HIGH (82%)',
+        flood: 'MODERATE-HIGH (67%)',
+        storm: 'HIGH (91%)'
+      }
+    }
+  },
+  {
+    id: 'stage-2-intensifying',
+    name: 'Peak Orographic Burst & Severe Convection',
+    simulatedTimestamp: '06 SEP 2026 • 19:15 IST',
+    forecast: [
+      { hour: 0, label: 'NOW', cloudburst: 76, flood: 58, storm: 88 },
+      { hour: 1, label: '+1 HR', cloudburst: 89, flood: 74, storm: 95 },
+      { hour: 2, label: '+2 HR', cloudburst: 93, flood: 85, storm: 92 },
+      { hour: 3, label: '+3 HR', cloudburst: 86, flood: 89, storm: 79 },
+      { hour: 4, label: '+4 HR', cloudburst: 71, flood: 82, storm: 66 },
+      { hour: 5, label: '+5 HR', cloudburst: 55, flood: 70, storm: 51 },
+      { hour: 6, label: '+6 HR', cloudburst: 39, flood: 56, storm: 40 }
+    ],
+    signals: [
+      { key: 'IWV', name: 'Integrated Water Vapour', value: 47.4, unit: 'kg/m²', trend: '+45%', status: 'RISING', series: [36, 38, 40, 42, 44, 46, 47.4] },
+      { key: 'CAPE', name: 'Convective Available Potential Energy', value: 2480, unit: 'J/kg', trend: '+32%', status: 'HIGH', series: [1800, 1920, 2050, 2180, 2300, 2410, 2480] },
+      { key: 'CIN', name: 'Convective Inhibition', value: 18, unit: 'J/kg', trend: '-58%', status: 'DECREASING', series: [48, 42, 36, 30, 25, 21, 18] },
+      { key: 'WCONV', name: 'Low-level Wind Convergence', value: 11.4, unit: '10⁻⁴ s⁻¹', trend: '+42%', status: 'HIGH', series: [6.8, 7.5, 8.4, 9.2, 10.1, 10.8, 11.4] },
+      { key: 'VWS', name: 'Vertical Wind Shear', value: 22.8, unit: 'm/s', trend: '+24%', status: 'ELEVATED', series: [16.5, 17.4, 18.6, 19.8, 21.0, 21.9, 22.8] },
+      { key: 'CTT', name: 'Cloud Top Temperature', value: -64, unit: '°C', trend: '-16°C', status: 'COOLING', series: [-42, -46, -50, -54, -58, -61, -64] }
+    ],
+    places: [
+      { id: 'kedarnath', name: 'Kedarnath / Chorabari Sector', lat: 30.735, long: 79.067, hazard: 'Cloudburst' as Hazard, prob: 96, level: 'HIGH' as RiskLevel, lead: '30 mins', signals: 'Severe CTT cooling (-64°C) + IWV 47.4' },
+      { id: 'gaurikund', name: 'Rambara - Gaurikund Gorge', lat: 30.652, long: 79.043, hazard: 'Flash Flood' as Hazard, prob: 92, level: 'HIGH' as RiskLevel, lead: '1 hr', signals: 'Steep slope convergence + extreme rainfall' },
+      { id: 'guptkashi', name: 'Guptkashi - Phata Ridge', lat: 30.523, long: 79.077, hazard: 'Thunderstorm' as Hazard, prob: 88, level: 'HIGH' as RiskLevel, lead: '1 hr', signals: 'High CAPE + extreme lightning signature' },
+      { id: 'rudraprayag', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Flash Flood' as Hazard, prob: 84, level: 'HIGH' as RiskLevel, lead: '3 hrs', signals: 'Moisture pooling + downstream flood surge' }
+    ],
+    centers: [
+      { lat: 30.735, long: 79.067, r: 0.058, level: 'HIGH' as RiskLevel, hazard: 'Cloudburst' as Hazard },
+      { lat: 30.652, long: 79.043, r: 0.048, level: 'HIGH' as RiskLevel, hazard: 'Flash Flood' as Hazard },
+      { lat: 30.523, long: 79.077, r: 0.042, level: 'HIGH' as RiskLevel, hazard: 'Thunderstorm' as Hazard },
+      { lat: 30.285, long: 78.981, r: 0.038, level: 'HIGH' as RiskLevel, hazard: 'Flash Flood' as Hazard }
+    ],
+    alerts: [
+      { id: 1, severity: 'HIGH' as RiskLevel, event: 'Cloudburst' as Hazard, location: 'Kedarnath / Chorabari Sector', prob: 96, lead: '30 mins', trigger: 'Extreme CTT + IWV Surge', status: 'ACTIVE' as const, actionRecommended: 'Issue immediate red alert and trigger shrine evacuation protocol' },
+      { id: 2, severity: 'HIGH' as RiskLevel, event: 'Flash Flood' as Hazard, location: 'Rambara - Gaurikund Gorge', prob: 92, lead: '1 hr', trigger: 'Saturated Soil + Torrential Runoff', status: 'ACTIVE' as const, actionRecommended: 'Immediately close Mandakini riverside pilgrim camps' },
+      { id: 3, severity: 'HIGH' as RiskLevel, event: 'Thunderstorm' as Hazard, location: 'Guptkashi - Phata Ridge', prob: 88, lead: '1 hr', trigger: 'CAPE 2480 J/kg + Strong Shear', status: 'ACTIVE' as const, actionRecommended: 'Warn power transmission grids and high-altitude shelters' },
+      { id: 4, severity: 'HIGH' as RiskLevel, event: 'Flash Flood' as Hazard, location: 'Rudraprayag Control Zone', prob: 84, lead: '3 hrs', trigger: 'Hydro-routed upstream surge', status: 'ACTIVE' as const, actionRecommended: 'Clear riverside ghats and low-lying market stalls' }
+    ],
+    explainability: {
+      summary: 'Atmospheric instability reached peak threshold. Severe convective cell locked into Mandakini valley orographic chimney.',
+      rows: [
+        ['Extreme CTT glaciation', 'Overshooting tops detected at -64°C by INSAT TIR1', 'Strong contribution'],
+        ['Moisture convergence maximum', 'Low-level convergence spiked to 11.4 x 10⁻⁴ s⁻¹', 'Strong contribution'],
+        ['CAPE super-instability', 'CAPE exceeds 2,400 J/kg with complete CIN erosion', 'Strong contribution'],
+        ['Steep DEM runoff amplification', 'SRTM slope > 35° accelerates flash flood transition', 'Strong contribution'],
+        ['VWS maintenance', 'Shear maintains organized multicellular storm structure', 'Moderate contribution']
+      ] as [string, string, string][],
+      overallConfidence: 'VERY HIGH' as const,
+      confidenceScore: 94,
+      hazardSplit: {
+        cloudburst: 'CRITICAL (93%)',
+        flood: 'HIGH (85%)',
+        storm: 'VERY HIGH (95%)'
+      }
+    }
+  },
+  {
+    id: 'stage-3-drainage',
+    name: 'Post-Burst Runoff & Hydrological Routing Phase',
+    simulatedTimestamp: '06 SEP 2026 • 20:00 IST',
+    forecast: [
+      { hour: 0, label: 'NOW', cloudburst: 65, flood: 86, storm: 62 },
+      { hour: 1, label: '+1 HR', cloudburst: 51, flood: 91, storm: 49 },
+      { hour: 2, label: '+2 HR', cloudburst: 42, flood: 88, storm: 38 },
+      { hour: 3, label: '+3 HR', cloudburst: 34, flood: 79, storm: 30 },
+      { hour: 4, label: '+4 HR', cloudburst: 28, flood: 68, storm: 24 },
+      { hour: 5, label: '+5 HR', cloudburst: 22, flood: 54, storm: 19 },
+      { hour: 6, label: '+6 HR', cloudburst: 18, flood: 41, storm: 15 }
+    ],
+    signals: [
+      { key: 'IWV', name: 'Integrated Water Vapour', value: 39.2, unit: 'kg/m²', trend: '-12%', status: 'DECREASING', series: [47, 46, 44, 43, 41, 40, 39.2] },
+      { key: 'CAPE', name: 'Convective Available Potential Energy', value: 1620, unit: 'J/kg', trend: '-28%', status: 'DECREASING', series: [2400, 2250, 2100, 1950, 1800, 1710, 1620] },
+      { key: 'CIN', name: 'Convective Inhibition', value: 62, unit: 'J/kg', trend: '+45%', status: 'RISING', series: [20, 26, 33, 41, 49, 56, 62] },
+      { key: 'WCONV', name: 'Low-level Wind Convergence', value: 5.2, unit: '10⁻⁴ s⁻¹', trend: '-38%', status: 'DECREASING', series: [11.0, 9.8, 8.7, 7.6, 6.7, 5.9, 5.2] },
+      { key: 'VWS', name: 'Vertical Wind Shear', value: 17.1, unit: 'm/s', trend: '-14%', status: 'ELEVATED', series: [22, 21.2, 20.3, 19.4, 18.5, 17.8, 17.1] },
+      { key: 'CTT', name: 'Cloud Top Temperature', value: -41, unit: '°C', trend: '+14°C', status: 'WARMING', series: [-62, -58, -53, -49, -46, -43, -41] }
+    ],
+    places: [
+      { id: 'kedarnath', name: 'Kedarnath / Chorabari Sector', lat: 30.735, long: 79.067, hazard: 'Flash Flood' as Hazard, prob: 78, level: 'MODERATE' as RiskLevel, lead: '1 hr', signals: 'Glacial runoff draining to gorge' },
+      { id: 'gaurikund', name: 'Rambara - Gaurikund Gorge', lat: 30.652, long: 79.043, hazard: 'Flash Flood' as Hazard, prob: 94, level: 'HIGH' as RiskLevel, lead: '1 hr', signals: 'Peak river channel swelling + debris flow' },
+      { id: 'guptkashi', name: 'Guptkashi - Phata Ridge', lat: 30.523, long: 79.077, hazard: 'Thunderstorm' as Hazard, prob: 46, level: 'WATCH' as RiskLevel, lead: '2 hrs', signals: 'Cell decaying, stratiform rain' },
+      { id: 'rudraprayag', name: 'Rudraprayag Control Zone', lat: 30.285, long: 78.981, hazard: 'Flash Flood' as Hazard, prob: 90, level: 'HIGH' as RiskLevel, lead: '2 hrs', signals: 'Mandakini surge reaching confluence' }
+    ],
+    centers: [
+      { lat: 30.652, long: 79.043, r: 0.060, level: 'HIGH' as RiskLevel, hazard: 'Flash Flood' as Hazard },
+      { lat: 30.285, long: 78.981, r: 0.052, level: 'HIGH' as RiskLevel, hazard: 'Flash Flood' as Hazard },
+      { lat: 30.735, long: 79.067, r: 0.038, level: 'MODERATE' as RiskLevel, hazard: 'Cloudburst' as Hazard },
+      { lat: 30.523, long: 79.077, r: 0.024, level: 'WATCH' as RiskLevel, hazard: 'Thunderstorm' as Hazard }
+    ],
+    alerts: [
+      { id: 2, severity: 'HIGH' as RiskLevel, event: 'Flash Flood' as Hazard, location: 'Rambara - Gaurikund Gorge', prob: 94, lead: '1 hr', trigger: 'Channel Swell + Debris Flow', status: 'ACTIVE' as const, actionRecommended: 'Maintain total vehicular closure and initiate bank reinforcements' },
+      { id: 4, severity: 'HIGH' as RiskLevel, event: 'Flash Flood' as Hazard, location: 'Rudraprayag Confluence', prob: 90, lead: '2 hrs', trigger: 'Hydro-routed upstream surge', status: 'ACTIVE' as const, actionRecommended: 'Sound siren at confluence ghats and enforce riverfront buffer zone' },
+      { id: 1, severity: 'MODERATE' as RiskLevel, event: 'Cloudburst' as Hazard, location: 'Kedarnath / Chorabari Sector', prob: 51, lead: '2 hrs', trigger: 'Stratiform transition', status: 'MONITOR' as const, actionRecommended: 'Assess ridge slope stabilization and cleared drainage paths' },
+      { id: 3, severity: 'WATCH' as RiskLevel, event: 'Thunderstorm' as Hazard, location: 'Guptkashi - Phata Ridge', prob: 38, lead: '3 hrs', trigger: 'Dissipating storm cell', status: 'WATCH' as const, actionRecommended: 'Resume normal vigilance standby' }
+    ],
+    explainability: {
+      summary: 'Atmospheric convective engine is relaxing as instability is exhausted. Threat shifts heavily to DEM-directed hydrological flood routing.',
+      rows: [
+        ['Hydrological lag in effect', 'Precipitation volume routing through Mandakini riverbed', 'Strong contribution'],
+        ['DEM slope flow accumulation', 'Steep topography (SRTM 30m) channels mountain runoff downstream', 'Strong contribution'],
+        ['Atmospheric CIN rebuilding', 'Convective inhibition rose to 62 J/kg, suppressing new cells', 'Moderate contribution'],
+        ['Cloud Top Warming', 'CTT warmed to -41°C, indicating anvil dissipation', 'Moderate contribution'],
+        ['Soil moisture saturation', 'Antecedent moisture index remains at 94%, preventing absorption', 'Strong contribution']
+      ] as [string, string, string][],
+      overallConfidence: 'HIGH' as const,
+      confidenceScore: 91,
+      hazardSplit: {
+        cloudburst: 'DECREASING (51%)',
+        flood: 'CRITICAL (91%)',
+        storm: 'LOW-MODERATE (38%)'
+      }
+    }
+  }
+];
+
+export const DISTRICT_LOCATIONS: DistrictLocationItem[] = [
+  // --- RUDRAPRAYAG DISTRICT ---
+  {
+    id: 'kedarnath',
+    name: 'Kedarnath / Chorabari Sector',
+    district: 'Rudraprayag',
+    lat: 30.735,
+    long: 79.067,
+    elevation: '3,584 m',
+    type: 'Glacial Catchment & Shrine Sanctuary',
+    description: 'Upper Mandakini headwaters & Chorabari moraine lake; primary ground-zero cloudburst trigger zone.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'gaurikund',
+    name: 'Rambara - Gaurikund Gorge',
+    district: 'Rudraprayag',
+    lat: 30.652,
+    long: 79.043,
+    elevation: '1,980 m',
+    type: 'Steep Gorge Transit Corridor',
+    description: 'Narrow mountain gorge with severe hydraulic channelling, tributary confluence & debris torrent vulnerability.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: true
+  },
+  {
+    id: 'sonprayag',
+    name: 'Sonprayag - Triyuginarayan',
+    district: 'Rudraprayag',
+    lat: 30.630,
+    long: 79.028,
+    elevation: '1,820 m',
+    type: 'River Confluence & Pilgrim Checkpoint',
+    description: 'Confluence of Mandakini & Songanga rivers; vital transit neck subject to tributary surges.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'guptkashi',
+    name: 'Guptkashi - Phata Ridge',
+    district: 'Rudraprayag',
+    lat: 30.523,
+    long: 79.077,
+    elevation: '1,319 m',
+    type: 'Orographic Crest & Helipad Outpost',
+    description: 'Mid-valley ridge sector subjected to intense thermodynamic CAPE buoyancy, lightning & cross-valley wind shear.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'ukhimath',
+    name: 'Ukhimath - Chopta Sub-sector',
+    district: 'Rudraprayag',
+    lat: 30.516,
+    long: 79.096,
+    elevation: '1,311 m',
+    type: 'Alpine Foothill & Winter Seat',
+    description: 'Opposite valley flank with heavy slope runoff feeding Madhyamaheshwar Ganga.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'agastyamuni',
+    name: 'Agastyamuni Floodplain',
+    district: 'Rudraprayag',
+    lat: 30.392,
+    long: 79.030,
+    elevation: '1,000 m',
+    type: 'Broad Valley Floodplain & Emergency Strip',
+    description: 'Wide fluvial plain prone to lateral erosion, silt accumulation, and inundation during high discharge.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'rudraprayag',
+    name: 'Rudraprayag Control Zone',
+    district: 'Rudraprayag',
+    lat: 30.285,
+    long: 78.981,
+    elevation: '890 m',
+    type: 'District EOC & River Confluence',
+    description: 'Confluence of Alaknanda & Mandakini rivers; critical downstream evacuation node and hydro-surge terminus.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: true
+  },
+
+  // --- CHAMOLI DISTRICT ---
+  {
+    id: 'badrinath',
+    name: 'Badrinath - Mana Valley',
+    district: 'Chamoli',
+    lat: 30.743,
+    long: 79.493,
+    elevation: '3,300 m',
+    type: 'High Alpine Alaknanda Catchment',
+    description: 'Upper Alaknanda headwaters near Saraswati confluence, prone to glacial lake overflows and rock avalanches.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'joshimath',
+    name: 'Joshimath - Badrinath Corridor',
+    district: 'Chamoli',
+    lat: 30.556,
+    long: 79.567,
+    elevation: '1,890 m',
+    type: 'Alaknanda - Dhauliganga Gorge & Pilgrim Axis',
+    description: 'Steep upper Alaknanda valley subjected to moraine instability, slope creep, and tributary flash flood surges.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: true
+  },
+  {
+    id: 'hemkund',
+    name: 'Hemkund Sahib / Valley of Flowers',
+    district: 'Chamoli',
+    lat: 30.698,
+    long: 79.605,
+    elevation: '4,329 m',
+    type: 'Glacial Cirque & High-Altitude Trek',
+    description: 'Alpine lake basin enclosed by steep peaks; vulnerable to cloud bursts and extreme rapid runoff.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'chamoli',
+    name: 'Chamoli - Gopeshwar Headquarters',
+    district: 'Chamoli',
+    lat: 30.413,
+    long: 79.324,
+    elevation: '1,300 m',
+    type: 'District HQ & Alaknanda Valley Basin',
+    description: 'Administrative hub monitoring middle Alaknanda basin and mountain highway passes.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: true
+  },
+  {
+    id: 'karnaprayag',
+    name: 'Karnaprayag Confluence Basin',
+    district: 'Chamoli',
+    lat: 30.260,
+    long: 79.217,
+    elevation: '860 m',
+    type: 'Pindar - Alaknanda Confluence',
+    description: 'Strategic junction of Pindar glacier runoff and Alaknanda mainstem, prone to severe seasonal flooding.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'gwaldam',
+    name: 'Gwaldam - Tharali Ridge',
+    district: 'Chamoli',
+    lat: 30.015,
+    long: 79.565,
+    elevation: '1,940 m',
+    type: 'Pindar Catchment Divide',
+    description: 'High forested ridge bordering Bageshwar, subject to convective storms and squalls.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'pipalkoti',
+    name: 'Pipalkoti - Alaknanda Valley',
+    district: 'Chamoli',
+    lat: 30.430,
+    long: 79.430,
+    elevation: '1,260 m',
+    type: 'Steep River Corridor & NH-58 Transit',
+    description: 'Constricted valley segment between Joshimath and Chamoli, highly vulnerable to landslides and roadblock surges.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+
+  // --- UTTARKASHI DISTRICT ---
+  {
+    id: 'gangotri',
+    name: 'Gangotri - Gaumukh Glacier',
+    district: 'Uttarkashi',
+    lat: 30.994,
+    long: 78.939,
+    elevation: '3,415 m',
+    type: 'Glacial Source & Bhagirathi Canyon',
+    description: 'Periglacial catchment of Bhagirathi river subject to rapid snowmelt, glacial lake surges, and cloudburst events.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'yamunotri',
+    name: 'Yamunotri - Jankichatti Gorge',
+    district: 'Uttarkashi',
+    lat: 31.014,
+    long: 78.460,
+    elevation: '3,291 m',
+    type: 'Upper Yamuna Canyon & Pilgrim Trail',
+    description: 'Precipitous gorge enclosing Yamuna origin, vulnerable to high-intensity cloudbursts and rockfall.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'harsil',
+    name: 'Harsil - Bhagirathi Valley',
+    district: 'Uttarkashi',
+    lat: 31.037,
+    long: 78.737,
+    elevation: '2,620 m',
+    type: 'Valley Basin & Military Garrison',
+    description: 'Glaciated river terrace with tributary streams prone to debris deposition during extreme convective rain.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'uttarkashi',
+    name: 'Uttarkashi - Bhagirathi Basin',
+    district: 'Uttarkashi',
+    lat: 30.726,
+    long: 78.435,
+    elevation: '1,158 m',
+    type: 'Upper Ganga Gorge & Tectonic Valley',
+    description: 'Steep catchment of Bhagirathi River vulnerable to cloudburst deluge, landslide dams, and flash floods.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'barkot',
+    name: 'Barkot - Yamuna Valley',
+    district: 'Uttarkashi',
+    lat: 30.812,
+    long: 78.208,
+    elevation: '1,220 m',
+    type: 'Yamuna River Foothill Basin',
+    description: 'Central junction in lower Yamuna valley, exposed to convective squalls and flood surges.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'mori',
+    name: 'Mori - Tons Valley',
+    district: 'Uttarkashi',
+    lat: 31.018,
+    long: 78.042,
+    elevation: '1,150 m',
+    type: 'Tons River Gorge & Forested Catchment',
+    description: 'Deep isolated canyon system prone to flash floods from upstream Himachal border tributaries.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+
+  // --- TEHRI GARHWAL DISTRICT ---
+  {
+    id: 'newtehri',
+    name: 'New Tehri - Bhagirathi Reservoir',
+    district: 'Tehri Garhwal',
+    lat: 30.392,
+    long: 78.480,
+    elevation: '1,750 m',
+    type: 'Reservoir Rim & District HQ',
+    description: 'High ridge overlooking Tehri Dam mega-reservoir, monitoring slope stability and squall line propagation.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'chamba',
+    name: 'Chamba - Mussoorie Ridge',
+    district: 'Tehri Garhwal',
+    lat: 30.347,
+    long: 78.397,
+    elevation: '1,600 m',
+    type: 'Trans-Garhwal Mountain Saddle',
+    description: 'Strategic crossroad linking Bhagirathi and Yamuna basins, vulnerable to lightning and high winds.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'devprayag',
+    name: 'Devprayag Ganga Confluence',
+    district: 'Tehri Garhwal',
+    lat: 30.146,
+    long: 78.599,
+    elevation: '830 m',
+    type: 'Alaknanda - Bhagirathi Sacred Confluence',
+    description: 'Origin of River Ganga; critical hydrological metering point integrating discharges of entire Garhwal Himalaya.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+  {
+    id: 'ghuttu',
+    name: 'Ghuttu - Bhilangna Valley',
+    district: 'Tehri Garhwal',
+    lat: 30.589,
+    long: 78.761,
+    elevation: '1,524 m',
+    type: 'Bhilangna Catchment Gateway',
+    description: 'Gateway to Khatling glacier valley prone to rapid cloudburst torrents and channel scouring.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- PAURI GARHWAL DISTRICT ---
+  {
+    id: 'srinagar',
+    name: 'Srinagar Garhwal - Alaknanda Basin',
+    district: 'Pauri Garhwal',
+    lat: 30.222,
+    long: 78.784,
+    elevation: '560 m',
+    type: 'Broad River Terrace & Academic Hub',
+    description: 'Major urban center situated on the wide floodplain of Alaknanda; primary flood receptor downriver from Rudraprayag.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+  {
+    id: 'pauri',
+    name: 'Pauri Headquarters Ridge',
+    district: 'Pauri Garhwal',
+    lat: 30.150,
+    long: 78.780,
+    elevation: '1,814 m',
+    type: 'District Headquarters Hill Crest',
+    description: 'High ridge overlooking the Alaknanda canyon; exposed to severe lightning strikes and squalls.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'kotdwar',
+    name: 'Kotdwar - Khoh River Gateway',
+    district: 'Pauri Garhwal',
+    lat: 29.746,
+    long: 78.528,
+    elevation: '454 m',
+    type: 'Sub-Himalayan Bhabar Gateway',
+    description: 'Drainage outlet for the southern Pauri hills where Khoh river exits into plains with extreme flood velocities.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'lansdowne',
+    name: 'Lansdowne Hill Outpost',
+    district: 'Pauri Garhwal',
+    lat: 29.838,
+    long: 78.685,
+    elevation: '1,706 m',
+    type: 'Cantonment Ridge & Pine Crest',
+    description: 'Pine-forested crest exposed to high orographic rain, lightning, and slope runoff.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- PITHORAGARH DISTRICT ---
+  {
+    id: 'dharchula',
+    name: 'Dharchula - Kali River Border',
+    district: 'Pithoragarh',
+    lat: 29.845,
+    long: 80.535,
+    elevation: '915 m',
+    type: 'Trans-Himalayan Border Gorge',
+    description: 'Precipitous international border gorge of Kali River vulnerable to trans-boundary flash floods and cloudburst debris flows.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: true
+  },
+  {
+    id: 'munsyari',
+    name: 'Munsyari - Panchachuli Basin',
+    district: 'Pithoragarh',
+    lat: 30.067,
+    long: 80.237,
+    elevation: '2,200 m',
+    type: 'Gori Ganga Glacial Valley',
+    description: 'Dramatic amphitheatre facing Panchachuli peaks, prone to intense cloudburst cells and moraine erosion.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'pithoragarh_town',
+    name: 'Pithoragarh Headquarters Basin',
+    district: 'Pithoragarh',
+    lat: 29.583,
+    long: 80.217,
+    elevation: '1,627 m',
+    type: 'Shor Valley & Central EOC',
+    description: 'District command center located in Shor valley, coordinating eastern Kumaon emergency response.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'didihat',
+    name: 'Didihat - Askot Ridge',
+    district: 'Pithoragarh',
+    lat: 29.798,
+    long: 80.258,
+    elevation: '1,725 m',
+    type: 'Goriganga - Kali Ridge Divide',
+    description: 'High ridge experiencing severe thunderstorm activity, high-altitude wind shear and slope failures.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'berinag',
+    name: 'Berinag - Chaukori Valley',
+    district: 'Pithoragarh',
+    lat: 29.774,
+    long: 80.053,
+    elevation: '1,860 m',
+    type: 'Mid-Himalayan Tea Terrace Ridge',
+    description: 'Scenic agricultural ridge prone to squall lines and heavy orographic downpours.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- BAGESHWAR DISTRICT ---
+  {
+    id: 'bageshwar_town',
+    name: 'Bageshwar Confluence Basin',
+    district: 'Bageshwar',
+    lat: 29.839,
+    long: 79.771,
+    elevation: '1,004 m',
+    type: 'Saryu - Gomti Sacred Confluence',
+    description: 'Confluence basin of Saryu and Gomti rivers, subject to rapid hydro-surge and market inundation.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'kapkot',
+    name: 'Kapkot - Saryu Headwaters',
+    district: 'Bageshwar',
+    lat: 29.938,
+    long: 79.904,
+    elevation: '1,120 m',
+    type: 'Upper Saryu Mountain Valley',
+    description: 'Steep valley gateway to Pindari glacier; vulnerable to cloudburst deluges and flash torrents.',
+    hazard: 'Cloudburst',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'kausani',
+    name: 'Kausani - Baijnath Ridge',
+    district: 'Bageshwar',
+    lat: 29.854,
+    long: 79.601,
+    elevation: '1,890 m',
+    type: 'Panoramic Himalayan Crest',
+    description: 'Exposed ridge with extensive vistas; frequently strikes by convective squalls and high winds.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- ALMORA DISTRICT ---
+  {
+    id: 'almora_town',
+    name: 'Almora - Kosi Valley',
+    district: 'Almora',
+    lat: 29.597,
+    long: 79.659,
+    elevation: '1,638 m',
+    type: 'Ridge-Top Town & Kosi Catchment',
+    description: 'Horse-saddle shaped ridge overlooking Kosi river basin; vulnerable to intense urban runoff and lightning.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'ranikhet',
+    name: 'Ranikhet - Chaubatia Ridge',
+    district: 'Almora',
+    lat: 29.643,
+    long: 79.432,
+    elevation: '1,869 m',
+    type: 'Cantonment Crest & Forest Belt',
+    description: 'High ridge subjected to strong thunderstorm wind gusts and convective precipitation.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'dwarahat',
+    name: 'Dwarahat Valley',
+    district: 'Almora',
+    lat: 29.778,
+    long: 79.427,
+    elevation: '1,510 m',
+    type: 'Ramganga West Tributary Basin',
+    description: 'Agricultural valley prone to stream flash surges during heavy monsoon downpours.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+
+  // --- NAINITAL DISTRICT ---
+  {
+    id: 'nainital_town',
+    name: 'Nainital Lake Basin',
+    district: 'Nainital',
+    lat: 29.392,
+    long: 79.454,
+    elevation: '2,084 m',
+    type: 'Endorheic Lake Basin & Steep Slopes',
+    description: 'Steep slopes enclosing Naini Lake; vulnerable to slope saturation, debris slips and lake surge overflow.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'haldwani',
+    name: 'Haldwani - Gaula River Bhabar',
+    district: 'Nainital',
+    lat: 29.218,
+    long: 79.513,
+    elevation: '424 m',
+    type: 'Foothill Gateway & Bhabar Floodplain',
+    description: 'Critical economic gateway where high-velocity Gaula torrents emerge from hills onto the plains.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+  {
+    id: 'mukteshwar',
+    name: 'Mukteshwar High Ridge',
+    district: 'Nainital',
+    lat: 29.472,
+    long: 79.654,
+    elevation: '2,171 m',
+    type: 'Isolated High Ridge Observatory',
+    description: 'High ridge with extreme exposure to lightning, convective clouds, and hail storms.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'ramnagar',
+    name: 'Ramnagar - Kosi Outflow',
+    district: 'Nainital',
+    lat: 29.395,
+    long: 79.126,
+    elevation: '345 m',
+    type: 'Corbett Foothill Drainage Basin',
+    description: 'Kosi river outflow into plain forests; prone to rapid midnight river surges from upstream cloudbursts.',
+    hazard: 'Flash Flood',
+    leadHours: 3,
+    isMajor: false
+  },
+
+  // --- DEHRADUN DISTRICT ---
+  {
+    id: 'dehradun_city',
+    name: 'Dehradun Capital Basin',
+    district: 'Dehradun',
+    lat: 30.316,
+    long: 78.032,
+    elevation: '640 m',
+    type: 'Sub-Himalayan Drainage & Urban Basin',
+    description: 'Inter-montane Dun valley catchment with high-velocity urban runoff, seasonal torrential choes, and thunderstorm fronts.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: true
+  },
+  {
+    id: 'rishikesh',
+    name: 'Rishikesh - Ganga Gorge Outflow',
+    district: 'Dehradun',
+    lat: 30.087,
+    long: 78.268,
+    elevation: '372 m',
+    type: 'Foothill Gorge & Holy Confluence Gate',
+    description: 'Points where River Ganga exits the Outer Himalayan ranges into the Indo-Gangetic plains; downstream flood threshold.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+  {
+    id: 'mussoorie',
+    name: 'Mussoorie - Queen of Hills Ridge',
+    district: 'Dehradun',
+    lat: 30.459,
+    long: 78.066,
+    elevation: '2,005 m',
+    type: 'Frontal Himalayan Ridge',
+    description: 'Frontal mountain barrier causing sharp orographic uplift of moist southerly monsoon currents.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+  {
+    id: 'chakrata',
+    name: 'Chakrata - Jaunsar High Pass',
+    district: 'Dehradun',
+    lat: 30.702,
+    long: 77.869,
+    elevation: '2,118 m',
+    type: 'Northwestern Border Ridge',
+    description: 'High ridge overlooking Yamuna and Tons watersheds, exposed to severe lightning and cloudburst systems.',
+    hazard: 'Thunderstorm',
+    leadHours: 1,
+    isMajor: false
+  },
+
+  // --- CHAMPAWAT DISTRICT ---
+  {
+    id: 'champawat_town',
+    name: 'Champawat - Lohaghat Ridge',
+    district: 'Champawat',
+    lat: 29.334,
+    long: 80.091,
+    elevation: '1,610 m',
+    type: 'Eastern Kumaon Hill Saddle',
+    description: 'District headquarters ridge prone to heavy convective spells and tributary flash torrents.',
+    hazard: 'Flash Flood',
+    leadHours: 2,
+    isMajor: false
+  },
+  {
+    id: 'tanakpur',
+    name: 'Tanakpur - Sharda River Gateway',
+    district: 'Champawat',
+    lat: 29.072,
+    long: 80.111,
+    elevation: '255 m',
+    type: 'Sharda River Barrage Basin',
+    description: 'Barrage terminus of trans-boundary Kali/Sharda river; primary plains flood monitoring post.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+
+  // --- HARIDWAR DISTRICT ---
+  {
+    id: 'haridwar_city',
+    name: 'Haridwar - Upper Ganga Plains',
+    district: 'Haridwar',
+    lat: 29.945,
+    long: 78.164,
+    elevation: '314 m',
+    type: 'Ganga Canal Barrage & Pilgrimage Plain',
+    description: 'Critical hydraulic regulator node controlling Ganga canal diversion and major pilgrimage ghats.',
+    hazard: 'Flash Flood',
+    leadHours: 5,
+    isMajor: false
+  },
+  {
+    id: 'roorkee',
+    name: 'Roorkee - Solani River Basin',
+    district: 'Haridwar',
+    lat: 29.854,
+    long: 77.888,
+    elevation: '268 m',
+    type: 'Alluvial Plains & Solani Aqueduct',
+    description: 'Plains urban zone susceptible to seasonal river flooding and urban waterlogging.',
+    hazard: 'Thunderstorm',
+    leadHours: 2,
+    isMajor: false
+  },
+
+  // --- UDHAM SINGH NAGAR DISTRICT ---
+  {
+    id: 'rudrapur',
+    name: 'Rudrapur - Terai Basin',
+    district: 'Udham Singh Nagar',
+    lat: 28.980,
+    long: 79.400,
+    elevation: '205 m',
+    type: 'Terai Industrial Center & Plain',
+    description: 'Southernmost district headquarters; low-lying drainage plain susceptible to river backflow and flooding.',
+    hazard: 'Flash Flood',
+    leadHours: 4,
+    isMajor: false
+  },
+  {
+    id: 'kashipur',
+    name: 'Kashipur - Dhela River Catchment',
+    district: 'Udham Singh Nagar',
+    lat: 29.210,
+    long: 78.950,
+    elevation: '218 m',
+    type: 'Agricultural Terai Floodplain',
+    description: 'Flat river basin prone to agricultural waterlogging and thunderstorm squalls.',
+    hazard: 'Thunderstorm',
+    leadHours: 2,
+    isMajor: false
+  }
+];
+
+function generateAllSectorAlerts(_rawAlerts: AlertItem[], scenarioIndex: number, timestamp: string): AlertItem[] {
+  // If base scenario (scenarioIndex === 0), use the neural model cache alerts directly
+  if (scenarioIndex === 0) {
+    return JSON.parse(JSON.stringify(modelCache.alerts));
+  }
+
+  // Scale from the calibrated neural baseline:
+  return (modelCache.alerts as AlertItem[]).map(baseAlert => {
+    const alert: AlertItem = { ...baseAlert, timeDispatched: timestamp };
+    if (scenarioIndex === 1) {
+      if (baseAlert.severity === 'HIGH') {
+        alert.prob = Math.min(98, baseAlert.prob + 6);
+        alert.status = 'ACTIVE' as const;
+      } else if (baseAlert.severity === 'MODERATE') {
+        alert.prob = Math.min(74, baseAlert.prob + 4);
+        alert.status = 'ACTIVE' as const;
+      } else {
+        alert.prob = Math.max(0, Math.min(38, baseAlert.prob + (baseAlert.id % 4) - 2));
+        alert.status = 'WATCH' as const;
+      }
+    } else if (scenarioIndex === 2) {
+      if (baseAlert.severity === 'HIGH') {
+        alert.prob = Math.max(45, baseAlert.prob - 22);
+        alert.severity = (alert.prob >= 75 ? 'HIGH' : (alert.prob >= 50 ? 'MODERATE' : 'WATCH')) as RiskLevel;
+        alert.status = 'MONITOR' as const;
+      } else if (baseAlert.severity === 'MODERATE') {
+        alert.prob = Math.max(25, baseAlert.prob - 18);
+        alert.severity = (alert.prob >= 50 ? 'MODERATE' : 'WATCH') as RiskLevel;
+        alert.status = 'MONITOR' as const;
+      } else {
+        alert.prob = Math.max(0, baseAlert.prob - 8);
+        alert.severity = 'WATCH' as RiskLevel;
+        alert.status = 'WATCH' as const;
+      }
+    }
+    return alert;
+  }).sort((a, b) => {
+    const sevOrder: Record<string, number> = { HIGH: 0, MODERATE: 1, WATCH: 2 };
+    const diff = (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3);
+    if (diff !== 0) return diff;
+    return b.prob - a.prob;
+  }).map((a, idx) => ({ ...a, id: idx + 1 }));
+}
+
+function getLiveFormattedTimestamp(offsetMinutes: number = 0): string {
+  const d = new Date(Date.now() + offsetMinutes * 60 * 1000);
+  const day = d.getDate().toString().padStart(2, '0');
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${day} ${month} ${year} • ${time} IST`;
+}
+
+export class SimulationEngine {
+  private scenarioIndex: number = 0;
+  private totalSimulationsRun: number = 0;
+
+  public getCurrentScenario(): SimulationOutput {
+    const raw = SCENARIOS[this.scenarioIndex];
+    const liveTime = getLiveFormattedTimestamp(this.scenarioIndex * 45);
+    return {
+      scenarioId: raw.id,
+      scenarioName: raw.name,
+      simulatedTimestamp: liveTime,
+      pipelineStages: this.generatePipelineSteps(),
+      forecast: JSON.parse(JSON.stringify(raw.forecast)),
+      signals: JSON.parse(JSON.stringify(raw.signals)),
+      alerts: generateAllSectorAlerts(JSON.parse(JSON.stringify(raw.alerts)), this.scenarioIndex, liveTime),
+      places: JSON.parse(JSON.stringify(raw.places)),
+      centers: JSON.parse(JSON.stringify(raw.centers)),
+      explainability: JSON.parse(JSON.stringify(raw.explainability))
+    };
+  }
+
+  public advanceSimulation(): SimulationOutput {
+    this.scenarioIndex = (this.scenarioIndex + 1) % SCENARIOS.length;
+    this.totalSimulationsRun += 1;
+    return this.getCurrentScenario();
+  }
+
+  public resetSimulation(): SimulationOutput {
+    this.scenarioIndex = 0;
+    return this.getCurrentScenario();
+  }
+
+  public getStats() {
+    return {
+      status: 'ONLINE',
+      engine: 'VAJRA Deterministic Spatiotemporal Simulator v2.4',
+      scenarioIndex: this.scenarioIndex,
+      scenarioName: SCENARIOS[this.scenarioIndex].name,
+      totalSimulationsRun: this.totalSimulationsRun,
+      activeTimestamp: getLiveFormattedTimestamp(this.scenarioIndex * 45),
+      supportedHazards: ['Cloudburst', 'Flash Flood', 'Thunderstorm']
+    };
+  }
+
+  public generatePipelineSteps(): SimulationStepResult[] {
+    return [
+      {
+        step: 1,
+        name: 'Processing satellite frames',
+        source: 'INSAT-3D/3DR TIR1 & WV Bands',
+        status: 'completed',
+        executionTimeMs: 142,
+        details: 'Extracted Integrated Water Vapour (IWV) & Cloud Top Temperature (-52°C to -64°C)'
+      },
+      {
+        step: 2,
+        name: 'Fusing atmospheric signals',
+        source: 'NCMRWF IMDAA Regional Reanalysis (12km)',
+        status: 'completed',
+        executionTimeMs: 185,
+        details: 'Computed CAPE (2,140–2,480 J/kg), CIN erosion, low-level wind convergence & shear'
+      },
+      {
+        step: 3,
+        name: 'Running spatiotemporal AI model',
+        source: 'ConvLSTM + Spatial Transformer Multi-Task Net',
+        status: 'completed',
+        executionTimeMs: 230,
+        details: 'Inferred multi-hazard probability tensor across 0–6 hour lead time window'
+      },
+      {
+        step: 4,
+        name: 'Generating probability maps',
+        source: 'Probabilistic Spatial Grid Aggregator',
+        status: 'completed',
+        executionTimeMs: 110,
+        details: 'Calibrated raster risk field for Cloudburst, Thunderstorm and Runoff zones'
+      },
+      {
+        step: 5,
+        name: 'Applying DEM terrain logic',
+        source: 'SRTM 30m Digital Elevation Model + Flow Routing',
+        status: 'completed',
+        executionTimeMs: 165,
+        details: 'Incorporated slope steepness, valley channeling and Mandakini flow accumulation'
+      },
+      {
+        step: 6,
+        name: 'Generating explainable alert',
+        source: 'VAJRA Attribution & Decision Advisory Engine',
+        status: 'completed',
+        executionTimeMs: 95,
+        details: 'Synthesized signal attribution, lead time confidence, and civil protection advisories'
+      }
+    ];
+  }
+}
