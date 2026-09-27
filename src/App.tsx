@@ -1002,17 +1002,15 @@ function App() {
 
             <div
               className="sim-time"
-              title={`Live system observation time: ${formatLiveClock(nowDate)}. Active nowcast lead horizon: ${activeTarget.timeStr} (${activeTarget.relativeLabel})`}
+              title={`Live observation base: ${formatObservationBase(nowDate)}. Active nowcast lead horizon: ${activeTarget.timeStr} (${activeTarget.relativeLabel})`}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="sim-time-tag">SIMULATION / SYSTEM TIME</span>
+              <div className="sim-time-head">
+                <span>SIMULATION TIME</span>
+                <span className="sim-time-target-pill">
+                  TARGET: {activeTarget.timeStr}
+                </span>
               </div>
               <strong>{formatLiveClock(nowDate)}</strong>
-              <div className="header-horizon-tag">
-                <span>NOWCAST TARGET:</span>
-                <strong>{activeTarget.timeStr}</strong>
-                <span>({activeTarget.shortLead})</span>
-              </div>
             </div>
 
             <button
@@ -1345,16 +1343,17 @@ function AlertCard(p: any) {
       </div>
 
       <div className="lead">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="lead-main-row">
           <span>ESTIMATED LEAD TIME</span>
-          {p.activeTarget && (
-            <span className="lead-clock-pill">Target: {p.activeTarget.timeStr}</span>
-          )}
+          <strong>{alertLead}</strong>
         </div>
-        <strong>{alertLead}</strong>
         {p.activeTarget && (
-          <div style={{ fontSize: '9px', color: '#38bdf8', marginTop: '3px', fontWeight: 600 }}>
-            Projected Impact Horizon: {p.activeTarget.timeStr} ({p.activeTarget.relativeLabel})
+          <div className="lead-sub-row">
+            <span className="lead-sub-label">
+              <span className="hud-indicator-dot" style={{ width: '5px', height: '5px' }} />
+              Projected Target Horizon ({p.activeTarget.shortLead}):
+            </span>
+            <span className="lead-sub-time">{p.activeTarget.timeStr}</span>
           </div>
         )}
       </div>
