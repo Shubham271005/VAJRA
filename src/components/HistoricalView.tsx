@@ -31,6 +31,7 @@ interface Props {
 export default function HistoricalView({ onRunNowcast }: Props) {
   const [selectedId, setSelectedId] = useState<string>('kedarnath-2013');
   const [selectedSector, setSelectedSector] = useState<AffectedSector | null>(null);
+  const [basemap, setBasemap] = useState<'satellite' | 'dark' | 'topo'>('satellite');
 
   const event: HistoricalEvent =
     HISTORICAL_EVENTS.find(e => e.id === selectedId) || HISTORICAL_EVENTS[0];
@@ -38,6 +39,49 @@ export default function HistoricalView({ onRunNowcast }: Props) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layersGroupRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+
+  // Switch or update Tile Layer whenever basemap changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+      tileLayerRef.current = null;
+    }
+
+    let newTiles: L.TileLayer;
+    if (basemap === 'satellite') {
+      newTiles = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxZoom: 18,
+          attribution: 'Esri Satellite'
+        }
+      );
+    } else if (basemap === 'dark') {
+      newTiles = L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          maxZoom: 19,
+          className: 'vajra-dark-tiles',
+          attribution: 'OpenStreetMap'
+        }
+      );
+    } else {
+      newTiles = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxZoom: 18,
+          attribution: 'Esri Topo'
+        }
+      );
+    }
+
+    newTiles.addTo(map);
+    tileLayerRef.current = newTiles;
+  }, [basemap]);
 
   // Initialize or update Leaflet Map
   useEffect(() => {
@@ -51,11 +95,15 @@ export default function HistoricalView({ onRunNowcast }: Props) {
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // CartoDB Dark Matter tile layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 18,
-        subdomains: 'abcd'
-      }).addTo(map);
+      // Default high-resolution Satellite Imagery (No API key required)
+      const initialTiles = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxZoom: 18,
+          attribution: 'Esri Satellite'
+        }
+      ).addTo(map);
+      tileLayerRef.current = initialTiles;
 
       const layerGroup = L.layerGroup().addTo(map);
       layersGroupRef.current = layerGroup;
@@ -426,7 +474,64 @@ export default function HistoricalView({ onRunNowcast }: Props) {
                 {event.basin} <span>Catchment GIS</span>
               </h2>
             </div>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '2px',
+                  background: 'rgba(15, 23, 42, 0.85)',
+                  padding: '2px',
+                  borderRadius: '6px',
+                  border: '1px solid #1e293b'
+                }}
+              >
+                <button
+                  onClick={() => setBasemap('satellite')}
+                  style={{
+                    background: basemap === 'satellite' ? '#103042' : 'transparent',
+                    border: 'none',
+                    color: basemap === 'satellite' ? '#38bdf8' : '#64748b',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Satellite
+                </button>
+                <button
+                  onClick={() => setBasemap('dark')}
+                  style={{
+                    background: basemap === 'dark' ? '#103042' : 'transparent',
+                    border: 'none',
+                    color: basemap === 'dark' ? '#38bdf8' : '#64748b',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Dark Radar
+                </button>
+                <button
+                  onClick={() => setBasemap('topo')}
+                  style={{
+                    background: basemap === 'topo' ? '#103042' : 'transparent',
+                    border: 'none',
+                    color: basemap === 'topo' ? '#38bdf8' : '#64748b',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Topo
+                </button>
+              </div>
+
               <button
                 onClick={handleResetMap}
                 style={{

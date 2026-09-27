@@ -2580,3 +2580,7 @@
   border: none !important;
 }
 
+.vajra-dark-tiles {
+  filter: brightness(0.65) invert(1) contrast(2.5) hue-rotate(200deg) saturate(0.35) brightness(0.75);
+}
+
