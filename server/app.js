@@ -191,7 +191,7 @@ app.get('/api/hazards', async (req, res) => {
       mode: sessionState.latestAiInference ? 'REAL_AI_MODEL_INFERENCE' : 'DEMO / SIMULATION MODE',
       disclaimer: sessionState.latestAiInference
         ? 'Live neural forward pass using VajraNowcastNet (ConvLSTM + Transformer)'
-        : 'Simulated prototype outputs for SIH 2026 evaluation'
+        : 'Simulated prototype outputs for evaluation'
     }
   });
 });

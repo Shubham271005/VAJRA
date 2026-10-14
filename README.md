@@ -1,8 +1,6 @@
-# VAJRA — DYNAMINDS | SIH 2026
+# VAJRA — DYNAMINDS
 
 AI-Driven Hyper-Local Early Warning System for Severe Weather Nowcasting
-
-Problem Statement ID: 26077 • Disaster Management • Software
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-vajra--iota.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vajra-iota.vercel.app)
 [![API Status](https://img.shields.io/badge/API-Online-success?style=for-the-badge)](https://vajra-iota.vercel.app/api/health)

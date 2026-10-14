@@ -935,7 +935,6 @@ function App() {
           <div className="brand-mark"><Siren size={21} /></div>
           <div><strong>VAJRA</strong><span>DYNAMINDS</span></div>
         </div>
-        <div className="sih-badge">SIH 2026 <i>•</i> PS 26077</div>
         <div className="nav-label">COMMAND CENTER</div>
         <nav>
           {nav.map(([label, I]) => (
@@ -1220,7 +1219,7 @@ function DemoFlag({ aiActive }: { aiActive?: boolean }) {
   }
   return (
     <div className="demo-flag">
-      <Radar size={14} /> SIH 2026 EVALUATION MODE{' '}
+      <Radar size={14} /> EVALUATION MODE{' '}
       <span>— Real PyTorch ConvLSTM Neural Engine Active across 50+ Hyperlocal Uttarakhand Sectors</span>
     </div>
   );

@@ -18,7 +18,7 @@ app.use((_req, res, next) => {
 app.get('/api', (_req: Request, res: Response) => {
   res.json({
     status: 'ONLINE',
-    service: 'VAJRA SIH 2026 AI Nowcasting API',
+    service: 'VAJRA AI Nowcasting API',
     environment: 'PROTOTYPE-SIMULATION',
     endpoints: [
       '/api/health',
@@ -150,7 +150,7 @@ app.get('/api/hazards', (req: Request, res: Response) => {
     data: hazards,
     meta: {
       mode: 'DEMO / SIMULATION MODE',
-      disclaimer: 'Simulated prototype outputs for SIH 2026 evaluation'
+      disclaimer: 'Simulated prototype outputs for evaluation'
     }
   });
 });
